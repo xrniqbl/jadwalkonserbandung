@@ -1,10 +1,14 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { 
+  X, MapPin, Calendar, Ticket, ChevronRight, Plus, Trash2, 
+  Edit2, Upload, ChevronLeft, Lock, Instagram, Facebook, Mail, CheckCircle 
+} from "lucide-react";
 
 /* ======================================================
    CONFIG
 ====================================================== */
 const ADMIN_PASSWORD = "admin123";
-const EVENTS_PER_PAGE = 6;
 
 /* ======================================================
    UTIL
@@ -24,28 +28,42 @@ const readFile = (file) =>
 ====================================================== */
 const DEFAULT_EVENTS = [
   {
-    id: Date.now(),
-    title: "Luvialand",
+    id: 170583,
+    title: "Luvialand 2026",
     slug: "luvialand",
-    date: "20 Januari 2026",
-    location: "Bandung",
+    date: "20 Jan 2026",
+    location: "Kopivilium, Bandung",
     price: "Rp100.000",
     ticket: "https://goersapp.com",
-    image:
-      "https://images.unsplash.com/photo-1507874457470-272b3c8d8ee2",
-    map: "https://maps.google.com/maps?q=bandung&t=&z=11&output=embed",
-    description: "Konser indie intimate dengan visual artistik.",
+    image: "https://images.unsplash.com/photo-1493225255756-d9584f8606e9?q=80&w=2070&auto=format&fit=crop",
+    map: "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3960.672932324796!2d107.6237233!3d-6.9296717!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x2e68e62c86d8084d%3A0x673992b8429141b7!2sKopivilium!5e0!3m2!1sid!2sid!4v1700000000000",
+    description: "Experience the most intimate indie gig in Bandung. Menampilkan payung teduh, tulus, dan masih banyak lagi.",
+  },
+  {
+    id: 170584,
+    title: "Techno Rave BDG",
+    slug: "techno-rave",
+    date: "28 Feb 2026",
+    location: "Braga City Walk",
+    price: "Rp150.000",
+    ticket: "https://goersapp.com",
+    image: "https://images.unsplash.com/photo-1574169208507-84376144848b?q=80&w=2079&auto=format&fit=crop",
+    map: "",
+    description: "Malam penuh dentuman bass dan visual lighting spektakuler di jantung kota Bandung.",
   },
 ];
 
 const DEFAULT_BANNERS = [
-  "https://images.unsplash.com/photo-1518972559570-7cc1309f3229",
-  "https://images.unsplash.com/photo-1497032205916-ac775f0649ae",
+  "https://images.unsplash.com/photo-1459749411177-0473ef7161ac?q=80&w=2070&auto=format&fit=crop",
+  "https://images.unsplash.com/photo-1533174072545-e8d4aa97edf9?q=80&w=2070&auto=format&fit=crop",
+  "https://images.unsplash.com/photo-1514525253440-b393452e3726?q=80&w=2070&auto=format&fit=crop",
+  "https://images.unsplash.com/photo-1470229722913-7ea0d0c42cc3?q=80&w=2070&auto=format&fit=crop"
 ];
 
 const DEFAULT_PARTNERS = [
   { id: 1, name: "GOERS", url: "https://goersapp.com" },
   { id: 2, name: "Spotify", url: "https://spotify.com" },
+  { id: 3, name: "Tiket.com", url: "https://tiket.com" },
 ];
 
 /* ======================================================
@@ -53,59 +71,57 @@ const DEFAULT_PARTNERS = [
 ====================================================== */
 export default function JadwalKonserBandung() {
   /* ================= STATE ================= */
-  const [dark, setDark] = useState(
-    () => localStorage.getItem("dark") === "1"
-  );
+  const [loading, setLoading] = useState(true);
 
   const [events, setEvents] = useState(
     () => JSON.parse(localStorage.getItem("events")) || DEFAULT_EVENTS
   );
-
   const [banners, setBanners] = useState(
     () => JSON.parse(localStorage.getItem("banners")) || DEFAULT_BANNERS
   );
-
   const [partners, setPartners] = useState(
     () => JSON.parse(localStorage.getItem("partners")) || DEFAULT_PARTNERS
   );
 
-  const [page, setPage] = useState("home"); // home | partner
-  const [detail, setDetail] = useState(null);
-
-  /* ================= SEARCH & SORT ================= */
   const [search, setSearch] = useState("");
-  const [sort, setSort] = useState("newest");
-
-  /* ================= PAGINATION ================= */
-  const [currentPage, setCurrentPage] = useState(1);
-
-  /* ================= BANNER SLIDER ================= */
+  const [selectedEvent, setSelectedEvent] = useState(null);
+  
+  // Partnership State
+  const [showPartnershipModal, setShowPartnershipModal] = useState(false);
+  const [partnerForm, setPartnerForm] = useState({
+    konserName: "",
+    date: "",
+    wa: "",
+    offer: "opt1",
+    customOfferText: "",
+    cameraAccess: false
+  });
+  
+  // Banner State
   const [bannerIndex, setBannerIndex] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
 
-  /* ================= ADMIN ================= */
-  const [showAdmin, setShowAdmin] = useState(false);
+  // Admin State
+  const [showAdminLogin, setShowAdminLogin] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [adminTab, setAdminTab] = useState("event");
   const [adminPwd, setAdminPwd] = useState("");
-
+  const [adminTab, setAdminTab] = useState("event");
+  const [clickCount, setClickCount] = useState(0); 
+  
+  // CRUD State
   const [editingEvent, setEditingEvent] = useState(null);
   const [newEvent, setNewEvent] = useState({
-    title: "",
-    date: "",
-    location: "",
-    price: "",
-    ticket: "",
-    map: "",
-    description: "",
-    image: "",
+    title: "", date: "", location: "", price: "", ticket: "", map: "", description: "", image: ""
   });
-
   const [newPartner, setNewPartner] = useState({ name: "", url: "" });
 
   /* ================= EFFECTS ================= */
   useEffect(() => {
-    localStorage.setItem("dark", dark ? "1" : "0");
-  }, [dark]);
+    const timer = setTimeout(() => {
+      setLoading(false);
+    }, 2500); 
+    return () => clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     localStorage.setItem("events", JSON.stringify(events));
@@ -114,476 +130,782 @@ export default function JadwalKonserBandung() {
   }, [events, banners, partners]);
 
   useEffect(() => {
-    if (banners.length <= 1) return;
-    const t = setInterval(
-      () => setBannerIndex((i) => (i + 1) % banners.length),
-      4000
-    );
+    if (isDragging) return;
+    const t = setInterval(() => {
+      if (banners.length > 0) {
+        setBannerIndex((prev) => (prev + 1) % banners.length);
+      }
+    }, 5000);
     return () => clearInterval(t);
-  }, [banners]);
+  }, [banners, isDragging]);
 
-  /* ================= FILTER ================= */
+  /* ================= HANDLERS ================= */
   const filteredEvents = useMemo(() => {
-    let data = events.filter((e) =>
+    return events.filter((e) =>
       e.title.toLowerCase().includes(search.toLowerCase())
-    );
-    if (sort === "az") data.sort((a, b) => a.title.localeCompare(b.title));
-    if (sort === "newest") data.sort((a, b) => b.id - a.id);
-    return data;
-  }, [events, search, sort]);
+    ).sort((a, b) => b.id - a.id);
+  }, [events, search]);
 
-  const totalPages = Math.ceil(filteredEvents.length / EVENTS_PER_PAGE);
-  const paginatedEvents = filteredEvents.slice(
-    (currentPage - 1) * EVENTS_PER_PAGE,
-    currentPage * EVENTS_PER_PAGE
-  );
-
-  /* ================= ADMIN LOGIC ================= */
-  const addEvent = () => {
-    if (!newEvent.title) return alert("Judul wajib");
-    setEvents([
-      {
-        ...newEvent,
-        id: Date.now(),
-        slug: slugify(newEvent.title),
-      },
-      ...events,
-    ]);
-    setNewEvent({
-      title: "",
-      date: "",
-      location: "",
-      price: "",
-      ticket: "",
-      map: "",
-      description: "",
-      image: "",
+  const handleSecretTrigger = () => {
+    setClickCount(prev => {
+      const count = prev + 1;
+      if (count === 5) {
+        setShowAdminLogin(true);
+        return 0;
+      }
+      return count;
     });
   };
 
-  const saveEditEvent = () => {
-    setEvents(
-      events.map((e) => (e.id === editingEvent.id ? editingEvent : e))
-    );
+  const onDragEnd = (event, info) => {
+    setIsDragging(false);
+    const offset = info.offset.x;
+    const velocity = info.velocity.x;
+    const DRAG_BUFFER = 50;
+
+    if (offset < -DRAG_BUFFER || velocity < -500) {
+      setBannerIndex((prev) => (prev + 1) % banners.length);
+    } else if (offset > DRAG_BUFFER || velocity > 500) {
+      setBannerIndex((prev) => (prev - 1 + banners.length) % banners.length);
+    }
+  };
+
+  const handleSubmitPartnership = () => {
+    if (!partnerForm.konserName || !partnerForm.date || !partnerForm.wa) {
+      alert("Mohon lengkapi Nama Konser, Tanggal, dan WhatsApp!");
+      return;
+    }
+
+    const offerText = {
+      opt1: "Bundling 2/3 Tiket Konser + Akses Mudah Media Partner",
+      opt2: "Fee Posting (Tiket mandiri, Akses Media Partner saat acara)",
+      opt3: "Bundling 2/3 Tiket Konser + Akses Biasa",
+      opt4: `Custom: ${partnerForm.customOfferText}`
+    };
+
+    const cameraText = partnerForm.cameraAccess 
+      ? "YA. Media Partner diizinkan membawa kamera profesional. Hasil foto/video boleh digunakan penyelenggara." 
+      : "TIDAK / Belum ditentukan.";
+
+    const subject = `Partnership - ${partnerForm.konserName}`;
+    const body = `Halo Tim Jadwal Konser Bandung,
+    
+Saya ingin mengajukan kerjasama media partner. Berikut detail acara kami:
+
+Nama Konser: ${partnerForm.konserName}
+Tanggal Acara: ${partnerForm.date}
+WhatsApp PIC: ${partnerForm.wa}
+
+Pilihan Kerjasama:
+${offerText[partnerForm.offer]}
+
+Akses Kamera Profesional:
+${cameraText}
+
+*Catatan: Saya telah melampirkan Logo Acara dan Poster Konser pada email ini secara manual.*
+
+Terima kasih.`;
+
+    window.open(`mailto:jadwalkonserbandung@gmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`);
+  };
+
+  // CRUD Functions
+  const handleAddEvent = () => {
+    if (!newEvent.title) return alert("Judul wajib diisi!");
+    setEvents([{ ...newEvent, id: Date.now(), slug: slugify(newEvent.title) }, ...events]);
+    setNewEvent({ title: "", date: "", location: "", price: "", ticket: "", map: "", description: "", image: "" });
+  };
+
+  const handleDeleteEvent = (id) => {
+    if (confirm("Yakin hapus event ini?")) setEvents(events.filter(e => e.id !== id));
+  };
+
+  const handleSaveEdit = () => {
+    setEvents(events.map(e => e.id === editingEvent.id ? editingEvent : e));
     setEditingEvent(null);
-  };
-
-  const deleteEvent = (id) => {
-    if (!confirm("Hapus event ini?")) return;
-    setEvents(events.filter((e) => e.id !== id));
-  };
-
-  const addPartner = () => {
-    if (!newPartner.name) return;
-    setPartners([...partners, { ...newPartner, id: Date.now() }]);
-    setNewPartner({ name: "", url: "" });
   };
 
   /* ======================================================
      RENDER
   ====================================================== */
+  if (loading) {
+    return (
+      <div className="fixed inset-0 bg-black flex flex-col items-center justify-center z-[9999]">
+        <motion.div
+          animate={{ scale: [1, 1.2, 1], rotate: [0, 10, -10, 0] }}
+          transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+          className="text-8xl mb-4"
+        >
+          🎵
+        </motion.div>
+        <motion.div 
+          initial={{ width: 0 }}
+          animate={{ width: "200px" }}
+          transition={{ duration: 2.5 }}
+          className="h-2 bg-[#a6b5cf] rounded-full" 
+        />
+        <p className="text-white mt-4 font-bold tracking-widest text-sm animate-pulse">MEMUAT KONSER...</p>
+      </div>
+    );
+  }
+
   return (
-    <div className={dark ? "dark bg-slate-900 text-white" : "bg-slate-100"}>
+    <div className="min-h-screen bg-[#FDFBF7] text-slate-900 font-sans selection:bg-[#a6b5cf] selection:text-black overflow-x-hidden flex flex-col">
+      
       {/* NAVBAR */}
-      <nav className="sticky top-0 z-50 bg-blue-600 border-b border-white/30 text-white px-6 py-4 flex justify-between">
-        <b className="text-lg">🎵 Jadwal Konser Bandung</b>
-        <div className="flex gap-4 items-center font-semibold">
-          <button onClick={() => setPage("home")}>Home</button>
-          <button onClick={() => setPage("partner")}>Partnership</button>
-          <button onClick={() => setDark(!dark)}>
-            {dark ? "☀️" : "🌙"}
-          </button>
-          <button
-            className="bg-white text-blue-600 px-3 py-1 rounded"
-            onClick={() => setShowAdmin(true)}
+      <nav className="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b-2 border-black">
+        <div className="max-w-6xl mx-auto px-6 py-4 flex justify-between items-center">
+          <div 
+            className="flex items-center gap-2 cursor-pointer select-none group"
+            onClick={handleSecretTrigger}
           >
-            Admin
-          </button>
+            <div className="w-8 h-8 bg-[#a6b5cf] border-2 border-black rounded-full flex items-center justify-center shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] group-active:translate-y-1 group-active:shadow-none transition-all">
+              🎵
+            </div>
+            <h1 className="text-xl font-bold tracking-tighter">
+              JADWALKONSER<span className="text-[#31528b]">BDG</span>
+            </h1>
+          </div>
+          
+          <div className="flex gap-4 text-sm font-bold">
+            <a href="#" className="hover:text-[#31528b] transition-colors">HOME</a>
+            <a href="#partners" className="hover:text-[#31528b] transition-colors">PARTNERS</a>
+          </div>
         </div>
       </nav>
 
-      {/* BANNER – HOME ONLY */}
-      {!detail && page === "home" && (
-        <div className="max-w-6xl mx-auto mt-6 relative">
-          <img
-            src={banners[bannerIndex]}
-            className="w-full h-56 object-cover rounded-2xl shadow transition-all duration-700"
-          />
-          <div className="absolute bottom-2 left-0 right-0 flex justify-center gap-2">
-            {banners.map((_, i) => (
-              <span
-                key={i}
-                onClick={() => setBannerIndex(i)}
-                className={`w-3 h-3 rounded-full cursor-pointer ${
-                  i === bannerIndex ? "bg-blue-500" : "bg-white/50"
-                }`}
+      <main className="w-full flex-grow">
+        
+        {/* HERO BANNER - CAROUSEL */}
+        <div className="mt-8 relative w-full overflow-hidden py-4">
+          
+          {/* Track Carousel */}
+          <motion.div 
+            className="flex gap-4 items-center"
+            style={{ 
+              "--slide-width": "min(630px, 85vw)", 
+              "--gap": "16px" 
+            }}
+            animate={{ 
+              x: `calc(50% - (var(--slide-width) / 2) - (${bannerIndex} * (var(--slide-width) + var(--gap))))` 
+            }}
+            transition={{ type: "spring", stiffness: 200, damping: 25 }}
+            drag="x"
+            dragConstraints={{ left: 0, right: 0 }} 
+            dragElastic={0.1}
+            onDragStart={() => setIsDragging(true)}
+            onDragEnd={(e, i) => {
+              setIsDragging(false);
+              const off = i.offset.x;
+              const vel = i.velocity.x;
+              if (off < -50 || vel < -500) {
+                 setBannerIndex((p) => (p + 1) % banners.length);
+              } else if (off > 50 || vel > 500) {
+                 setBannerIndex((p) => (p - 1 + banners.length) % banners.length);
+              }
+            }}
+          >
+            {banners.map((src, index) => (
+              <motion.div 
+                key={index}
+                className={`relative shrink-0 rounded-2xl border-2 border-black bg-black overflow-hidden shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all duration-300`}
+                style={{ 
+                  width: "var(--slide-width)",
+                  aspectRatio: "630/140"
+                }}
+                animate={{
+                  scale: index === bannerIndex ? 1 : 0.9,
+                  opacity: index === bannerIndex ? 1 : 0.5,
+                  filter: index === bannerIndex ? "grayscale(0%)" : "grayscale(100%)"
+                }}
+              >
+                <img 
+                  src={src} 
+                  className="w-full h-full object-cover opacity-90"
+                  draggable="false"
+                />
+                
+                {index === bannerIndex && (
+                  <div className="absolute inset-0 bg-black/20 flex flex-col items-center justify-center p-2">
+                    <h2 className="text-lg md:text-2xl font-black text-white tracking-tighter drop-shadow-[2px_2px_0px_rgba(0,0,0,1)] text-center leading-none">
+                       JELAJAHI MUSIK <span className="text-[#a6b5cf]">BANDUNG</span>
+                    </h2>
+                  </div>
+                )}
+              </motion.div>
+            ))}
+          </motion.div>
+
+          {/* Navigation Dots */}
+          <div className="flex justify-center gap-2 mt-6">
+            {banners.map((_, idx) => (
+              <button 
+                key={idx}
+                onClick={() => setBannerIndex(idx)}
+                className={`w-3 h-3 rounded-full border border-black shadow-sm transition-all ${idx === bannerIndex ? 'bg-[#a6b5cf] scale-125' : 'bg-white'}`}
               />
             ))}
           </div>
-        </div>
-      )}
 
-      {/* SEARCH & SORT */}
-      {!detail && page === "home" && (
-        <div className="max-w-6xl mx-auto p-6 flex gap-4">
-          <input
-            className="flex-1 p-3 rounded-xl border"
-            placeholder="Cari konser..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-          <select
-            className="p-3 rounded-xl border"
-            value={sort}
-            onChange={(e) => setSort(e.target.value)}
-          >
-            <option value="newest">Terbaru</option>
-            <option value="az">A–Z</option>
-          </select>
-        </div>
-      )}
-
-      {/* EVENT GRID */}
-      {!detail && page === "home" && (
-        <div className="max-w-6xl mx-auto p-6 grid md:grid-cols-3 gap-6">
-          {paginatedEvents.map((e) => (
-            <div
-              key={e.id}
-              className="
-  bg-white dark:bg-slate-800 
-  text-slate-900 dark:text-slate-100
-  rounded-2xl shadow
-"
-
-              onClick={() => setDetail(e)}
+          {/* Side Buttons */}
+          <div className="hidden md:block">
+            <button 
+              onClick={() => setBannerIndex((prev) => (prev - 1 + banners.length) % banners.length)}
+              className="absolute left-10 top-1/2 -translate-y-1/2 bg-white p-2 rounded-full border-2 border-black hover:bg-[#a6b5cf] shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-y-[-40%] active:shadow-none transition-all z-10"
             >
-              <img
-                src={e.image}
-                className="h-40 w-full object-cover rounded-t-2xl"
+              <ChevronLeft size={24} />
+            </button>
+            <button 
+              onClick={() => setBannerIndex((prev) => (prev + 1) % banners.length)}
+              className="absolute right-10 top-1/2 -translate-y-1/2 bg-white p-2 rounded-full border-2 border-black hover:bg-[#a6b5cf] shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-y-1 active:shadow-none transition-all z-10"
+            >
+              <ChevronRight size={24} />
+            </button>
+          </div>
+
+        </div>
+
+        {/* CONTAINER FOR CONTENT */}
+        <div className="max-w-6xl mx-auto px-6">
+          
+          {/* SEARCH */}
+          <div className="mt-6 flex flex-col md:flex-row gap-4 items-center">
+            <div className="relative w-full">
+              <input 
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Cari konser favoritmu..." 
+                className="w-full bg-white border-2 border-black rounded-xl px-5 py-4 text-lg font-medium focus:outline-none focus:ring-4 focus:ring-[#a6b5cf] transition-all shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] focus:translate-x-[2px] focus:translate-y-[2px] focus:shadow-none"
               />
-              <div className="p-4 space-y-1">
-                <b>{e.title}</b>
-                <p className="text-sm opacity-70">{e.date}</p>
-                <p className="text-blue-500 font-semibold">{e.price}</p>
+              <div className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400">
+                🔍
               </div>
             </div>
-          ))}
-        </div>
-      )}
-
-      {/* PAGINATION */}
-      {!detail && (
-        <div className="flex justify-center gap-2 pb-10">
-          {Array.from({ length: totalPages }).map((_, i) => (
-            <button
-              key={i}
-              onClick={() => setCurrentPage(i + 1)}
-              className={`px-3 py-1 rounded transition ${
-                currentPage === i + 1
-                  ? "bg-blue-600 text-white"
-                  : "bg-white"
-              }`}
-            >
-              {i + 1}
-            </button>
-          ))}
-        </div>
-      )}
-
-      {/* DETAIL */}
-      {detail && (
-        <div className="max-w-6xl mx-auto p-6 grid md:grid-cols-2 gap-6">
-          <img
-            src={detail.image}
-            className="rounded-2xl w-full h-[350px] object-cover"
-          />
-          <div className="space-y-4">
-            <h1 className="text-3xl font-bold">{detail.title}</h1>
-            <p>{detail.description}</p>
-            <iframe
-              src={detail.map}
-              className="w-full h-40 rounded"
-              loading="lazy"
-            />
-            <a
-              href={detail.ticket}
-              target="_blank"
-              className="inline-block bg-blue-600 text-white px-6 py-3 rounded-lg"
-            >
-              Beli Tiket
-            </a>
-            <button
-              className="block text-blue-500 mt-2"
-              onClick={() => setDetail(null)}
-            >
-              ← Kembali
-            </button>
           </div>
-        </div>
-      )}
 
-      {/* PARTNERSHIP (NO BANNER) */}
-      {page === "partner" && (
-        <div className="max-w-4xl mx-auto p-10 text-center space-y-6">
-          <h2 className="text-3xl font-bold">Partner Kami</h2>
-          <div className="flex justify-center gap-6 flex-wrap">
-            {partners.map((p) => (
-              <a
-                key={p.id}
-                href={p.url}
-                target="_blank"
-                className="
-  bg-white dark:bg-slate-800 
-  text-slate-900 dark:text-slate-100
-  rounded-2xl shadow
-"
-
+          {/* EVENT GRID */}
+          <div className="mt-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+            {filteredEvents.map((event) => (
+              <motion.div
+                layoutId={`card-${event.id}`}
+                key={event.id}
+                onClick={() => setSelectedEvent(event)}
+                whileHover={{ y: -8 }}
+                className="bg-white rounded-2xl border-2 border-black overflow-hidden cursor-pointer shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:shadow-[10px_10px_0px_0px_#31528b] transition-all group"
               >
-                {p.name}
-              </a>
+                <div className="relative h-48 overflow-hidden border-b-2 border-black">
+                  <motion.img 
+                    layoutId={`img-${event.id}`}
+                    src={event.image} 
+                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                  />
+                  <div className="absolute top-3 right-3 bg-white border-2 border-black px-3 py-1 text-sm font-bold rounded-full shadow-sm">
+                    {event.price}
+                  </div>
+                </div>
+                <div className="p-5">
+                  <motion.h3 layoutId={`title-${event.id}`} className="text-xl font-black mb-2 leading-tight">
+                    {event.title}
+                  </motion.h3>
+                  <div className="space-y-2 text-sm font-medium text-slate-600">
+                    <div className="flex items-center gap-2">
+                      <Calendar className="w-4 h-4 text-[#31528b]" />
+                      <span>{event.date}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <MapPin className="w-4 h-4 text-red-500" />
+                      <span>{event.location}</span>
+                    </div>
+                  </div>
+                  <div className="mt-4 pt-4 border-t-2 border-dashed border-slate-200 flex justify-between items-center">
+                    <span className="text-xs font-bold bg-slate-100 px-2 py-1 rounded">GENRE: POP/INDIE</span>
+                    <div className="bg-black text-white p-2 rounded-full">
+                      <ChevronRight size={16} />
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
             ))}
           </div>
-        </div>
-      )}
 
-      {/* ================= ADMIN PANEL ================= */}
-      {showAdmin && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur flex items-center justify-center z-50">
-          <div className="
-  bg-white dark:bg-slate-800 
-  text-slate-900 dark:text-slate-100
-  rounded-2xl shadow
-">
+          {/* PARTNERSHIP SECTION */}
+          <div id="partners" className="mt-24 border-t-4 border-black pt-10 pb-20">
+            <motion.div 
+              whileHover={{ scale: 1.02, rotate: 1 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => setShowPartnershipModal(true)}
+              className="cursor-pointer border-4 border-black bg-[#a6b5cf] p-6 md:p-8 mb-12 text-center shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[4px] hover:translate-y-[4px] transition-all rounded-2xl"
+            >
+               <h2 className="text-2xl md:text-4xl font-black italic tracking-tighter uppercase mb-2">
+                 ✨ Ayo Jadikan <span className="text-[#31528b] bg-white px-2">JADWALKONSERBDG</span> Media Partner! ✨
+               </h2>
+               <p className="font-bold text-lg underline decoration-wavy decoration-black">Klik di sini untuk kerjasama & boost eventmu!</p>
+            </motion.div>
 
-            {!isAdmin ? (
-              <>
-                <h3 className="text-xl font-bold">Admin Login</h3>
-                <input
-                  type="password"
-                  placeholder="Password"
-                  className="w-full p-3 rounded border"
-                  value={adminPwd}
-                  onChange={(e) => setAdminPwd(e.target.value)}
-                />
-                <button
-                  className="w-full bg-blue-600 text-white py-3 rounded-xl"
-                  onClick={() =>
-                    adminPwd === ADMIN_PASSWORD
-                      ? setIsAdmin(true)
-                      : alert("Password salah")
-                  }
+            <div className="flex flex-col md:flex-row items-center justify-between mb-8">
+              <h3 className="text-3xl font-black uppercase italic tracking-tighter">Official Partners</h3>
+              <p className="text-slate-500 font-medium">Didukung oleh brand terbaik</p>
+            </div>
+            <div className="flex flex-wrap gap-4 justify-center md:justify-start">
+              {partners.map((p) => (
+                <a 
+                  key={p.id} 
+                  href={p.url} 
+                  target="_blank"
+                  className="bg-white px-6 py-3 rounded-xl border-2 border-black font-bold hover:bg-[#a6b5cf] transition-colors shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-y-1 hover:shadow-none"
                 >
-                  Login
-                </button>
-              </>
-            ) : (
-              <>
-                {/* ADMIN TABS */}
-                <div className="flex gap-4 font-semibold">
-                  <button onClick={() => setAdminTab("event")}>Event</button>
-                  <button onClick={() => setAdminTab("banner")}>Banner</button>
-                  <button onClick={() => setAdminTab("partner")}>Partner</button>
-                </div>
+                  {p.name} ↗
+                </a>
+              ))}
+            </div>
+          </div>
+        </div>
+      </main>
 
-                {/* EVENT CRUD */}
-                {adminTab === "event" && (
-                  <div className="space-y-6">
-                    <h3 className="text-xl font-bold">Event</h3>
+      {/* FOOTER */}
+      <footer className="bg-black text-white pt-16 pb-8 border-t-4 border-[#a6b5cf] mt-auto">
+        <div className="max-w-6xl mx-auto px-6 grid md:grid-cols-4 gap-8">
+          <div className="col-span-1 md:col-span-2">
+            <div className="flex items-center gap-2 mb-4">
+              <div className="w-10 h-10 bg-[#a6b5cf] text-black rounded-full flex items-center justify-center text-xl font-bold border-2 border-white">
+                🎵
+              </div>
+              <h2 className="text-3xl font-black tracking-tighter">
+                JADWALKONSER<span className="text-[#31528b]">BDG</span>
+              </h2>
+            </div>
+            <p className="text-slate-400 max-w-sm leading-relaxed">
+              Platform informasi jadwal konser paling update di Bandung. Temukan gig favoritmu, beli tiket, dan rasakan atmosfer musik kota kembang.
+            </p>
+          </div>
+          <div>
+            <h3 className="text-lg font-bold mb-4 text-[#a6b5cf] uppercase tracking-widest">Menu</h3>
+            <ul className="space-y-2 text-slate-300">
+              <li><a href="#" className="hover:text-white hover:underline">Home</a></li>
+              <li><a href="#partners" className="hover:text-white hover:underline">Partnership</a></li>
+              <li><a href="#" className="hover:text-white hover:underline">Tentang Kami</a></li>
+              <li><a href="#" className="hover:text-white hover:underline">Kontak</a></li>
+            </ul>
+          </div>
+          <div>
+            <h3 className="text-lg font-bold mb-4 text-[#a6b5cf] uppercase tracking-widest">Connect</h3>
+            <div className="flex gap-4">
+              
+              {/* INSTAGRAM LINK UPDATED */}
+              <a 
+                href="https://www.instagram.com/jadwalkonserbandung/" 
+                target="_blank" 
+                rel="noopener noreferrer" 
+                className="bg-white text-black p-2 rounded-full hover:bg-[#a6b5cf] hover:scale-110 transition-all"
+              >
+                <Instagram size={20} />
+              </a>
+              
+              {/* TIKTOK LINK UPDATED */}
+              <a 
+                href="https://www.tiktok.com/@jadwalkonserbandung" 
+                target="_blank"
+                rel="noopener noreferrer"
+                className="bg-white text-black p-2 rounded-full hover:bg-[#a6b5cf] hover:scale-110 transition-all flex items-center justify-center"
+              >
+                 <svg 
+                   xmlns="http://www.w3.org/2000/svg" 
+                   width="20" 
+                   height="20" 
+                   viewBox="0 0 24 24" 
+                   fill="none" 
+                   stroke="currentColor" 
+                   strokeWidth="2" 
+                   strokeLinecap="round" 
+                   strokeLinejoin="round" 
+                   className="lucide lucide-music"
+                 >
+                   <path d="M9 18V5l12-2v13" />
+                   <circle cx="6" cy="18" r="3" />
+                   <circle cx="18" cy="16" r="3" />
+                 </svg>
+              </a>
 
-                    {/* ADD EVENT */}
-                    <div className="grid md:grid-cols-2 gap-4">
-                      <input placeholder="Judul" className="p-3 border rounded"
-                        value={newEvent.title}
-                        onChange={(e) =>
-                          setNewEvent({ ...newEvent, title: e.target.value })
-                        }
-                      />
-                      <input placeholder="Tanggal" className="p-3 border rounded"
-                        value={newEvent.date}
-                        onChange={(e) =>
-                          setNewEvent({ ...newEvent, date: e.target.value })
-                        }
-                      />
-                      <input placeholder="Lokasi" className="p-3 border rounded"
-                        value={newEvent.location}
-                        onChange={(e) =>
-                          setNewEvent({ ...newEvent, location: e.target.value })
-                        }
-                      />
-                      <input placeholder="Harga" className="p-3 border rounded"
-                        value={newEvent.price}
-                        onChange={(e) =>
-                          setNewEvent({ ...newEvent, price: e.target.value })
-                        }
-                      />
-                      <input placeholder="Link Tiket" className="p-3 border rounded"
-                        value={newEvent.ticket}
-                        onChange={(e) =>
-                          setNewEvent({ ...newEvent, ticket: e.target.value })
-                        }
-                      />
-                      <input placeholder="Google Maps Embed" className="p-3 border rounded"
-                        value={newEvent.map}
-                        onChange={(e) =>
-                          setNewEvent({ ...newEvent, map: e.target.value })
-                        }
-                      />
-                      <textarea placeholder="Deskripsi" className="p-3 border rounded md:col-span-2"
-                        value={newEvent.description}
-                        onChange={(e) =>
-                          setNewEvent({ ...newEvent, description: e.target.value })
-                        }
-                      />
-                      <input type="file"
-                        onChange={async (e) =>
-                          setNewEvent({
-                            ...newEvent,
-                            image: await readFile(e.target.files[0]),
-                          })
-                        }
-                      />
-                    </div>
+              <a href="#" className="bg-white text-black p-2 rounded-full hover:bg-[#a6b5cf] hover:scale-110 transition-all"><Facebook size={20} /></a>
+              <a href="#" className="bg-white text-black p-2 rounded-full hover:bg-[#a6b5cf] hover:scale-110 transition-all"><Mail size={20} /></a>
+            </div>
+            <div className="mt-6">
+              <p className="text-xs text-slate-500">© 2026 JADWALKONSERBDG.</p>
+              <p className="text-xs text-slate-500">All rights reserved.</p>
+            </div>
+          </div>
+        </div>
+      </footer>
 
-                    <button
-                      className="bg-green-600 text-white px-6 py-3 rounded-xl"
-                      onClick={addEvent}
-                    >
-                      Tambah Event
-                    </button>
+      {/* PARTNERSHIP MODAL - FIXED SCROLLING */}
+      <AnimatePresence>
+        {showPartnershipModal && (
+          <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-md overflow-y-auto">
+             <div className="flex min-h-full items-center justify-center p-4">
+               <motion.div 
+                 initial={{ scale: 0.9, opacity: 0 }}
+                 animate={{ scale: 1, opacity: 1 }}
+                 exit={{ scale: 0.9, opacity: 0 }}
+                 className="bg-[#FDFBF7] w-full max-w-4xl rounded-3xl border-4 border-[#a6b5cf] shadow-[10px_10px_0px_0px_rgba(255,255,255,0.2)] flex flex-col my-8"
+               >
+                  {/* Header */}
+                  <div className="bg-black text-white p-6 md:p-8 flex justify-between items-start border-b-4 border-[#a6b5cf] rounded-t-2xl">
+                     <div>
+                        <h2 className="text-3xl font-black italic tracking-tighter text-[#a6b5cf] mb-2">KERJASAMA MEDIA PARTNER</h2>
+                        <p className="text-slate-300 font-medium">Isi form di bawah untuk kolaborasi epik bareng JADWALKONSERBDG!</p>
+                     </div>
+                     <button onClick={() => setShowPartnershipModal(false)} className="bg-white text-black p-2 rounded-full hover:bg-red-500 hover:text-white transition-colors">
+                       <X size={24} />
+                     </button>
+                  </div>
 
-                    {/* LIST */}
-                    <div className="space-y-2">
-                      {events.map((e) => (
-                        <div
-                          key={e.id}
-                          className="flex justify-between items-center bg-slate-100 dark:bg-slate-700 p-3 rounded"
-                        >
-                          <span>{e.title}</span>
-                          <div className="flex gap-2">
-                            <button
-                              className="text-yellow-500"
-                              onClick={() => setEditingEvent(e)}
-                            >
-                              Edit
-                            </button>
-                            <button
-                              className="text-red-500"
-                              onClick={() => deleteEvent(e.id)}
-                            >
-                              Hapus
-                            </button>
+                  {/* Content */}
+                  <div className="p-6 md:p-8 flex flex-col md:flex-row gap-8">
+                     
+                     {/* Left: Info */}
+                     <div className="md:w-1/3 space-y-6">
+                        <div className="bg-white p-5 rounded-2xl border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+                           <h3 className="font-black text-xl mb-3 flex items-center gap-2">🚀 KEUNTUNGAN</h3>
+                           <ul className="space-y-3 text-sm font-bold text-slate-700">
+                              <li className="flex items-start gap-2"><CheckCircle size={18} className="text-[#31528b] shrink-0" /> Engagement Tinggi dari komunitas konser aktif.</li>
+                              <li className="flex items-start gap-2"><CheckCircle size={18} className="text-[#31528b] shrink-0" /> Target pasar spesifik: Anak muda Bandung & Sekitarnya.</li>
+                              <li className="flex items-start gap-2"><CheckCircle size={18} className="text-[#31528b] shrink-0" /> Membantu boost penjualan tiket secara organik.</li>
+                           </ul>
+                        </div>
+                        
+                        <div className="bg-blue-50 p-5 rounded-2xl border-2 border-[#31528b] border-dashed">
+                           <h3 className="font-bold text-[#31528b] text-sm mb-2">📸 UPLOAD FILES</h3>
+                           <p className="text-xs text-blue-600 mb-4">Karena keterbatasan sistem email otomatis, mohon siapkan file berikut untuk dilampirkan nanti di aplikasi email Anda:</p>
+                           <ul className="text-xs font-bold text-[#31528b] list-disc list-inside">
+                             <li>Logo Acara (PNG/JPG)</li>
+                             <li>Poster Konser (Feed Instagram)</li>
+                           </ul>
+                           <button className="mt-4 w-full bg-[#31528b] text-white py-2 rounded-lg font-bold text-xs hover:bg-[#26406e] cursor-not-allowed opacity-70">Upload via Email (Otomatis)</button>
+                        </div>
+                     </div>
+
+                     {/* Right: Form */}
+                     <div className="md:w-2/3 space-y-5">
+                        <div className="grid md:grid-cols-2 gap-4">
+                          <div className="space-y-1">
+                            <label className="font-bold text-sm">Nama Konser</label>
+                            <input value={partnerForm.konserName} onChange={(e) => setPartnerForm({...partnerForm, konserName: e.target.value})} className="w-full border-2 border-black p-3 rounded-xl font-medium focus:ring-4 focus:ring-[#a6b5cf] outline-none" placeholder="Contoh: Bandung Berisik 2026" />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="font-bold text-sm">Hari / Tanggal / Tahun</label>
+                            <input type="date" value={partnerForm.date} onChange={(e) => setPartnerForm({...partnerForm, date: e.target.value})} className="w-full border-2 border-black p-3 rounded-xl font-medium focus:ring-4 focus:ring-[#a6b5cf] outline-none" />
                           </div>
                         </div>
+
+                        <div className="space-y-1">
+                          <label className="font-bold text-sm">WhatsApp PIC</label>
+                          <input value={partnerForm.wa} onChange={(e) => setPartnerForm({...partnerForm, wa: e.target.value})} className="w-full border-2 border-black p-3 rounded-xl font-medium focus:ring-4 focus:ring-[#a6b5cf] outline-none" placeholder="0812xxxx" />
+                        </div>
+
+                        <div className="space-y-2">
+                          <label className="font-bold text-sm block border-b-2 border-slate-200 pb-2 mb-2">Pilih Skema Kerjasama (Wajib Pilih Satu)</label>
+                          {[
+                            {val: 'opt1', label: 'Bundling 2/3 Tiket Konser + Akses Mudah Media Partner'},
+                            {val: 'opt2', label: 'Fee Posting (Beli tiket mandiri, Akses MP saat acara)'},
+                            {val: 'opt3', label: 'Bundling 2/3 Tiket Konser + Akses Biasa'},
+                            {val: 'opt4', label: 'Isi Penawaran Sendiri...'}
+                          ].map((opt) => (
+                            <label key={opt.val} className={`flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ${partnerForm.offer === opt.val ? 'border-[#31528b] bg-blue-50' : 'border-slate-200 hover:border-slate-400'}`}>
+                               <input type="radio" name="offer" value={opt.val} checked={partnerForm.offer === opt.val} onChange={(e) => setPartnerForm({...partnerForm, offer: e.target.value})} className="w-5 h-5 accent-[#31528b]" />
+                               <span className="font-bold text-sm">{opt.label}</span>
+                            </label>
+                          ))}
+                          {partnerForm.offer === 'opt4' && (
+                            <motion.textarea initial={{opacity: 0, height: 0}} animate={{opacity: 1, height: 'auto'}} className="w-full border-2 border-black p-3 rounded-xl mt-2 text-sm font-medium focus:ring-4 focus:ring-[#a6b5cf] outline-none" placeholder="Tuliskan penawaran kerjasama Anda di sini..." rows="3" value={partnerForm.customOfferText} onChange={(e) => setPartnerForm({...partnerForm, customOfferText: e.target.value})} />
+                          )}
+                        </div>
+
+                        <div className="bg-slate-50 p-4 rounded-xl border border-slate-300">
+                           <label className="flex items-start gap-3 cursor-pointer">
+                              <input type="checkbox" checked={partnerForm.cameraAccess} onChange={(e) => setPartnerForm({...partnerForm, cameraAccess: e.target.checked})} className="w-6 h-6 mt-1 accent-[#31528b] rounded" />
+                              <div className="text-sm">
+                                 <p className="font-bold">Izin Membawa Kamera Profesional?</p>
+                                 <p className="text-slate-500 text-xs mt-1">Jika dicentang, Media Partner boleh membawa kamera profesional. Hasil foto/video akan dibagikan ke panitia untuk keperluan dokumentasi.</p>
+                              </div>
+                           </label>
+                        </div>
+                     </div>
+                  </div>
+
+                  {/* Footer Action */}
+                  <div className="p-6 md:p-8 border-t-2 border-slate-200 bg-white rounded-b-2xl">
+                     <button onClick={handleSubmitPartnership} className="w-full bg-black text-white py-4 rounded-xl font-black text-xl hover:bg-[#a6b5cf] hover:text-black hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-1 transition-all border-2 border-transparent hover:border-black flex items-center justify-center gap-2">
+                       <Mail /> KIRIM PENAWARAN (VIA EMAIL)
+                     </button>
+                     <p className="text-center text-xs text-slate-400 mt-3">*Akan membuka aplikasi email Anda dengan format pesan otomatis.</p>
+                  </div>
+               </motion.div>
+             </div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* DETAIL MODAL (Overlay) - FIXED SCROLLING */}
+      <AnimatePresence>
+        {selectedEvent && (
+          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm overflow-y-auto">
+            <div className="flex min-h-full items-center justify-center p-4">
+              <motion.div 
+                layoutId={`card-${selectedEvent.id}`}
+                className="relative w-full max-w-4xl bg-white rounded-3xl border-4 border-black shadow-[12px_12px_0px_0px_rgba(255,255,255,0.2)] overflow-hidden flex flex-col md:flex-row my-8"
+              >
+                {/* Image Side */}
+                <div className="md:w-1/2 relative min-h-[300px] border-b-4 md:border-b-0 md:border-r-4 border-black">
+                  <motion.img 
+                    layoutId={`img-${selectedEvent.id}`}
+                    src={selectedEvent.image} 
+                    className="absolute inset-0 w-full h-full object-cover"
+                  />
+                  <button 
+                    onClick={(e) => { e.stopPropagation(); setSelectedEvent(null); }}
+                    className="absolute top-4 left-4 bg-white rounded-full p-2 border-2 border-black shadow-md hover:bg-red-500 hover:text-white transition-colors z-10"
+                  >
+                    <X size={20} />
+                  </button>
+                </div>
+
+                {/* Content Side */}
+                <div className="md:w-1/2 p-6 md:p-8 flex flex-col bg-[#FDFBF7]">
+                  <div className="mb-auto">
+                    <div className="flex gap-2 mb-4">
+                       <span className="bg-[#a6b5cf] border border-black px-3 py-1 text-xs font-bold rounded-md shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+                         UPCOMING
+                       </span>
+                    </div>
+                    <motion.h2 layoutId={`title-${selectedEvent.id}`} className="text-3xl md:text-4xl font-black mb-4 leading-none">
+                      {selectedEvent.title}
+                    </motion.h2>
+                    
+                    <div className="space-y-4 mb-6 text-lg">
+                      <div className="flex items-center gap-3">
+                        <Calendar className="text-[#31528b]" />
+                        <span className="font-bold">{selectedEvent.date}</span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <MapPin className="text-red-500" />
+                        <span className="font-bold">{selectedEvent.location}</span>
+                      </div>
+                    </div>
+
+                    <p className="text-slate-600 leading-relaxed mb-6 font-medium border-l-4 border-slate-300 pl-4">
+                      {selectedEvent.description}
+                    </p>
+
+                    {/* Map Embed */}
+                    {selectedEvent.map && (
+                      <div className="rounded-xl overflow-hidden border-2 border-black h-40 mb-6 grayscale hover:grayscale-0 transition-all shadow-md">
+                        <iframe 
+                          src={selectedEvent.map} 
+                          className="w-full h-full border-0" 
+                          loading="lazy"
+                          referrerPolicy="no-referrer-when-downgrade"
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="pt-6 border-t-2 border-dashed border-slate-300">
+                     <div className="flex items-center justify-between mb-4">
+                        <span className="text-sm text-slate-500 font-bold uppercase">Harga Tiket</span>
+                        <span className="text-2xl font-black text-[#31528b]">{selectedEvent.price}</span>
+                     </div>
+                     <a 
+                       href={selectedEvent.ticket} 
+                       target="_blank"
+                       className="block w-full bg-black text-white text-center py-4 rounded-xl font-bold text-lg hover:bg-[#a6b5cf] hover:text-black hover:border-black border-2 border-transparent transition-all shadow-lg active:scale-95 flex items-center justify-center gap-2"
+                     >
+                       <Ticket size={20} />
+                       BELI TIKET SEKARANG
+                     </a>
+                  </div>
+                </div>
+              </motion.div>
+            </div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ADMIN MODAL - FIXED SCROLLING */}
+      <AnimatePresence>
+        {showAdminLogin && (
+          <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-md overflow-y-auto">
+            <div className="flex min-h-full items-center justify-center p-4">
+              <motion.div 
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.9, opacity: 0 }}
+                className="bg-white w-full max-w-3xl rounded-3xl border-4 border-[#31528b] p-6 shadow-2xl my-8"
+              >
+                {!isAdmin ? (
+                  <div className="text-center max-w-sm mx-auto py-10">
+                    <div className="mx-auto w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4 text-3xl">🔐</div>
+                    <h2 className="text-2xl font-black mb-6">ADMIN ACCESS</h2>
+                    <p className="text-slate-500 mb-6 text-sm">Masuk untuk mengelola event & banner</p>
+                    <input 
+                      type="password" 
+                      placeholder="Masukkan Password..." 
+                      className="w-full text-center text-xl p-3 border-b-4 border-slate-200 focus:border-[#31528b] outline-none transition-colors mb-6 font-bold"
+                      value={adminPwd}
+                      onChange={(e) => setAdminPwd(e.target.value)}
+                    />
+                    <div className="flex gap-2">
+                      <button onClick={() => setShowAdminLogin(false)} className="flex-1 py-3 font-bold text-slate-400 hover:text-slate-600">BATAL</button>
+                      <button onClick={() => { if (adminPwd === ADMIN_PASSWORD) setIsAdmin(true); else alert("Password Salah!"); }} className="flex-1 bg-[#31528b] text-white py-3 rounded-xl font-bold hover:bg-[#26406e]">MASUK</button>
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <div className="flex justify-between items-center mb-6 border-b-2 border-slate-100 pb-4">
+                      <h2 className="text-2xl font-black flex items-center gap-2">
+                        <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse" />
+                        DASHBOARD ADMIN
+                      </h2>
+                      <button onClick={() => setShowAdminLogin(false)} className="bg-slate-100 p-2 rounded-lg hover:bg-slate-200">
+                        <X size={20} />
+                      </button>
+                    </div>
+
+                    <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
+                      {['event', 'banner', 'partner'].map(tab => (
+                        <button 
+                          key={tab}
+                          onClick={() => setAdminTab(tab)}
+                          className={`px-6 py-2 rounded-full font-bold border-2 border-black capitalize transition-all ${
+                            adminTab === tab ? 'bg-black text-white' : 'bg-white hover:bg-slate-50'
+                          }`}
+                        >
+                          {tab}s
+                        </button>
                       ))}
                     </div>
 
-                    {/* EDIT MODAL */}
+                    {/* EVENT TAB */}
+                    {adminTab === 'event' && (
+                      <div className="grid md:grid-cols-2 gap-8">
+                         <div className="space-y-4">
+                            <h3 className="font-bold text-lg border-l-4 border-[#31528b] pl-3">Tambah / Edit Event</h3>
+                            <input placeholder="Judul Event" className="w-full p-3 bg-slate-50 border rounded-lg font-bold" value={newEvent.title} onChange={e => setNewEvent({...newEvent, title: e.target.value})} />
+                            <div className="grid grid-cols-2 gap-3">
+                               <input placeholder="Tanggal (e.g 20 Jan)" className="p-3 bg-slate-50 border rounded-lg" value={newEvent.date} onChange={e => setNewEvent({...newEvent, date: e.target.value})} />
+                               <input placeholder="Harga (e.g Rp100k)" className="p-3 bg-slate-50 border rounded-lg" value={newEvent.price} onChange={e => setNewEvent({...newEvent, price: e.target.value})} />
+                            </div>
+                            <input placeholder="Lokasi" className="w-full p-3 bg-slate-50 border rounded-lg" value={newEvent.location} onChange={e => setNewEvent({...newEvent, location: e.target.value})} />
+                            <input placeholder="Link Tiket (URL)" className="w-full p-3 bg-slate-50 border rounded-lg" value={newEvent.ticket} onChange={e => setNewEvent({...newEvent, ticket: e.target.value})} />
+                            
+                            {/* SMART MAP INPUT */}
+                            <input 
+                              placeholder="Paste kode HTML dari Google Maps (iframe)" 
+                              className="w-full p-3 bg-slate-50 border rounded-lg" 
+                              value={newEvent.map} 
+                              onChange={(e) => {
+                                let val = e.target.value;
+                                if (val.includes('<iframe')) {
+                                  const srcMatch = val.match(/src="([^"]+)"/);
+                                  if (srcMatch && srcMatch[1]) {
+                                    val = srcMatch[1];
+                                  }
+                                }
+                                setNewEvent({...newEvent, map: val});
+                              }} 
+                            />
+                            
+                            <textarea placeholder="Deskripsi Singkat" className="w-full p-3 bg-slate-50 border rounded-lg h-24" value={newEvent.description} onChange={e => setNewEvent({...newEvent, description: e.target.value})} />
+                            
+                            <div className="flex items-center gap-2">
+                              <label className="flex-1 cursor-pointer bg-slate-100 border-2 border-dashed border-slate-300 p-4 rounded-lg text-center hover:bg-slate-200 transition">
+                                <span className="text-sm font-bold text-slate-500">📸 Upload Gambar</span>
+                                <input type="file" className="hidden" onChange={async (e) => setNewEvent({...newEvent, image: await readFile(e.target.files[0])})} />
+                              </label>
+                              {newEvent.image && <img src={newEvent.image} className="h-16 w-16 rounded object-cover border border-black" />}
+                            </div>
+
+                            <button 
+                              onClick={handleAddEvent}
+                              className="w-full bg-[#a6b5cf] border-2 border-black text-black py-3 rounded-xl font-black hover:bg-[#8da0c1] shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-y-1 active:shadow-none transition-all"
+                            >
+                              <Plus className="inline mr-2" size={18} />
+                              PUBLISH EVENT
+                            </button>
+                         </div>
+
+                         <div className="bg-slate-50 p-4 rounded-xl border-2 border-slate-200 max-h-[600px] overflow-y-auto">
+                            <h3 className="font-bold text-lg mb-4 text-slate-500">List Events ({events.length})</h3>
+                            <div className="space-y-3">
+                              {events.map(event => (
+                                <div key={event.id} className="bg-white p-3 rounded-lg border border-slate-200 shadow-sm flex gap-3 items-center group">
+                                  <img src={event.image} className="w-12 h-12 rounded object-cover bg-slate-200" />
+                                  <div className="flex-1 min-w-0">
+                                    <h4 className="font-bold truncate">{event.title}</h4>
+                                    <p className="text-xs text-slate-500">{event.date}</p>
+                                  </div>
+                                  <div className="flex gap-1 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <button onClick={() => { setEditingEvent(event); setNewEvent(event); }} className="p-2 bg-yellow-100 text-yellow-700 rounded hover:bg-yellow-200"><Edit2 size={16} /></button>
+                                    <button onClick={() => handleDeleteEvent(event.id)} className="p-2 bg-red-100 text-red-700 rounded hover:bg-red-200"><Trash2 size={16} /></button>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                         </div>
+                      </div>
+                    )}
+
+                    {/* BANNER TAB */}
+                    {adminTab === 'banner' && (
+                      <div>
+                        <label className="block w-full cursor-pointer bg-slate-100 border-2 border-dashed border-[#31528b] p-8 rounded-xl text-center hover:bg-blue-50 transition mb-6">
+                           <Upload className="mx-auto mb-2 text-[#31528b]" />
+                           <span className="font-bold text-[#31528b]">Tambah Banner Baru</span>
+                           <input type="file" className="hidden" onChange={async (e) => setBanners([...banners, await readFile(e.target.files[0])])} />
+                        </label>
+                        <div className="grid grid-cols-2 gap-4">
+                          {banners.map((b, i) => (
+                            <div key={i} className="relative group rounded-xl overflow-hidden border-2 border-slate-200">
+                               <img src={b} className="w-full h-32 object-cover" />
+                               <button onClick={() => setBanners(banners.filter((_, idx) => idx !== i))} className="absolute top-2 right-2 bg-red-500 text-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 size={16} /></button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* PARTNER TAB */}
+                    {adminTab === 'partner' && (
+                       <div className="space-y-4">
+                          <div className="flex gap-2">
+                             <input placeholder="Nama Partner" className="flex-1 p-3 bg-slate-50 border rounded-lg" value={newPartner.name} onChange={e => setNewPartner({...newPartner, name: e.target.value})} />
+                             <input placeholder="URL Link" className="flex-1 p-3 bg-slate-50 border rounded-lg" value={newPartner.url} onChange={e => setNewPartner({...newPartner, url: e.target.value})} />
+                             <button onClick={() => { if(newPartner.name) { setPartners([...partners, {...newPartner, id: Date.now()}]); setNewPartner({name:'', url:''}); } }} className="bg-black text-white px-6 rounded-lg font-bold">ADD</button>
+                          </div>
+                          <div className="grid gap-2">
+                            {partners.map(p => (
+                              <div key={p.id} className="flex justify-between items-center bg-white p-4 border rounded-xl">
+                                <span className="font-bold">{p.name}</span>
+                                <button onClick={() => setPartners(partners.filter(x => x.id !== p.id))} className="text-red-500 font-bold text-sm hover:underline">Hapus</button>
+                              </div>
+                            ))}
+                          </div>
+                       </div>
+                    )}
+                    
                     {editingEvent && (
-                      <div className="p-4 border rounded space-y-3">
-                        <h4 className="font-bold">Edit Event</h4>
-                        <input className="w-full p-2 border rounded"
-                          value={editingEvent.title}
-                          onChange={(e) =>
-                            setEditingEvent({ ...editingEvent, title: e.target.value })
-                          }
-                        />
-                        <textarea className="w-full p-2 border rounded"
-                          value={editingEvent.description}
-                          onChange={(e) =>
-                            setEditingEvent({ ...editingEvent, description: e.target.value })
-                          }
-                        />
-                        <button
-                          className="bg-blue-600 text-white px-4 py-2 rounded"
-                          onClick={saveEditEvent}
-                        >
-                          Simpan
-                        </button>
+                      <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded text-sm text-yellow-800 flex justify-between items-center">
+                        <span>Sedang mengedit: <b>{editingEvent.title}</b>. Tekan "Publish Event" untuk menyimpan perubahan.</span>
+                        <button onClick={handleSaveEdit} className="underline font-bold">Simpan Perubahan</button>
                       </div>
                     )}
                   </div>
                 )}
-
-                {/* BANNER CRUD */}
-                {adminTab === "banner" && (
-                  <div className="space-y-4">
-                    <h3 className="text-xl font-bold">Banner</h3>
-                    <input
-                      type="file"
-                      onChange={async (e) =>
-                        setBanners([...banners, await readFile(e.target.files[0])])
-                      }
-                    />
-                    {banners.map((b, i) => (
-                      <div key={i} className="flex justify-between items-center">
-                        <img src={b} className="h-16 rounded" />
-                        <button
-                          className="text-red-500"
-                          onClick={() =>
-                            setBanners(banners.filter((_, x) => x !== i))
-                          }
-                        >
-                          Hapus
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* PARTNER CRUD */}
-                {adminTab === "partner" && (
-                  <div className="space-y-4">
-                    <h3 className="text-xl font-bold">Partner</h3>
-                    <input placeholder="Nama" className="p-3 border rounded"
-                      value={newPartner.name}
-                      onChange={(e) =>
-                        setNewPartner({ ...newPartner, name: e.target.value })
-                      }
-                    />
-                    <input placeholder="URL" className="p-3 border rounded"
-                      value={newPartner.url}
-                      onChange={(e) =>
-                        setNewPartner({ ...newPartner, url: e.target.value })
-                      }
-                    />
-                    <button
-                      className="bg-green-600 text-white px-4 py-2 rounded"
-                      onClick={addPartner}
-                    >
-                      Tambah Partner
-                    </button>
-
-                    {partners.map((p) => (
-                      <div key={p.id} className="flex justify-between">
-                        <span>{p.name}</span>
-                        <button
-                          className="text-red-500"
-                          onClick={() =>
-                            setPartners(partners.filter((x) => x.id !== p.id))
-                          }
-                        >
-                          Hapus
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </>
-            )}
-
-            <button
-              className="w-full opacity-60"
-              onClick={() => {
-                setShowAdmin(false);
-                setIsAdmin(false);
-                setEditingEvent(null);
-              }}
-            >
-              Tutup
-            </button>
+              </motion.div>
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </AnimatePresence>
+
     </div>
   );
 }
