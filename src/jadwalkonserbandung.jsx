@@ -2,11 +2,37 @@ import React, { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   X, MapPin, Calendar, Ticket, ChevronRight, Plus, Trash2, 
-  Edit2, Upload, ChevronLeft, Lock, Instagram, Facebook, Mail, CheckCircle 
+  Edit2, Upload, ChevronLeft, Lock, Instagram, Facebook, Mail, CheckCircle, Database, Loader 
 } from "lucide-react";
 
+// --- FIREBASE IMPORTS ---
+import { initializeApp } from "firebase/app";
+import { 
+  getFirestore, collection, onSnapshot, addDoc, deleteDoc, updateDoc, doc 
+} from "firebase/firestore";
+
+// CATATAN: Kita TIDAK LAGI menggunakan firebase/storage. Gambar disimpan langsung di database (Base64).
+
 /* ======================================================
-   CONFIG
+   CONFIG FIREBASE (GANTI DENGAN PUNYA ANDA)
+   Cukup salin apiKey, authDomain, dan projectId dari Console.
+====================================================== */
+const firebaseConfig = {
+  apiKey: "AIzaSyDBeG-GM36bniBHaybNJKSdX-Catjw8Nfs",
+  authDomain: "jadwalkonserbandung-3ddef.firebaseapp.com",
+  databaseURL: "https://jadwalkonserbandung-3ddef-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "jadwalkonserbandung-3ddef",
+  storageBucket: "jadwalkonserbandung-3ddef.firebasestorage.app",
+  messagingSenderId: "977324195866",
+  appId: "1:977324195866:web:503aed7af5083ad2f591a3"
+};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+/* ======================================================
+   APP CONFIG
 ====================================================== */
 const ADMIN_PASSWORD = "admin123";
 
@@ -16,55 +42,23 @@ const ADMIN_PASSWORD = "admin123";
 const slugify = (t = "") =>
   t.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
 
-const readFile = (file) =>
-  new Promise((res) => {
+// Fungsi Pembaca Gambar ke Base64 (Lokal)
+const readFileBase64 = (file) => {
+  return new Promise((resolve, reject) => {
+    // Validasi Ukuran: Maksimal 950KB (Biar aman masuk Firestore limit 1MB)
+    const limit = 950 * 1024; 
+    if (file.size > limit) {
+      alert("File terlalu besar! Maksimal 1 MB untuk versi Gratis. Silakan kompres gambar dulu.");
+      resolve(null);
+      return;
+    }
+
     const r = new FileReader();
-    r.onload = () => res(r.result);
+    r.onload = () => resolve(r.result);
+    r.onerror = reject;
     r.readAsDataURL(file);
   });
-
-/* ======================================================
-   DEFAULT DATA
-====================================================== */
-const DEFAULT_EVENTS = [
-  {
-    id: 170583,
-    title: "Luvialand 2026",
-    slug: "luvialand",
-    date: "20 Jan 2026",
-    location: "Kopivilium, Bandung",
-    price: "Rp100.000",
-    ticket: "https://goersapp.com",
-    image: "https://images.unsplash.com/photo-1493225255756-d9584f8606e9?q=80&w=2070&auto=format&fit=crop",
-    map: "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3960.672932324796!2d107.6237233!3d-6.9296717!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x2e68e62c86d8084d%3A0x673992b8429141b7!2sKopivilium!5e0!3m2!1sid!2sid!4v1700000000000",
-    description: "Experience the most intimate indie gig in Bandung. Menampilkan payung teduh, tulus, dan masih banyak lagi.",
-  },
-  {
-    id: 170584,
-    title: "Techno Rave BDG",
-    slug: "techno-rave",
-    date: "28 Feb 2026",
-    location: "Braga City Walk",
-    price: "Rp150.000",
-    ticket: "https://goersapp.com",
-    image: "https://images.unsplash.com/photo-1574169208507-84376144848b?q=80&w=2079&auto=format&fit=crop",
-    map: "",
-    description: "Malam penuh dentuman bass dan visual lighting spektakuler di jantung kota Bandung.",
-  },
-];
-
-const DEFAULT_BANNERS = [
-  "https://images.unsplash.com/photo-1459749411177-0473ef7161ac?q=80&w=2070&auto=format&fit=crop",
-  "https://images.unsplash.com/photo-1533174072545-e8d4aa97edf9?q=80&w=2070&auto=format&fit=crop",
-  "https://images.unsplash.com/photo-1514525253440-b393452e3726?q=80&w=2070&auto=format&fit=crop",
-  "https://images.unsplash.com/photo-1470229722913-7ea0d0c42cc3?q=80&w=2070&auto=format&fit=crop"
-];
-
-const DEFAULT_PARTNERS = [
-  { id: 1, name: "GOERS", url: "https://goersapp.com" },
-  { id: 2, name: "Spotify", url: "https://spotify.com" },
-  { id: 3, name: "Tiket.com", url: "https://tiket.com" },
-];
+};
 
 /* ======================================================
    MAIN COMPONENT
@@ -72,16 +66,11 @@ const DEFAULT_PARTNERS = [
 export default function JadwalKonserBandung() {
   /* ================= STATE ================= */
   const [loading, setLoading] = useState(true);
+  const [processing, setProcessing] = useState(false); // State processing gambar
 
-  const [events, setEvents] = useState(
-    () => JSON.parse(localStorage.getItem("events")) || DEFAULT_EVENTS
-  );
-  const [banners, setBanners] = useState(
-    () => JSON.parse(localStorage.getItem("banners")) || DEFAULT_BANNERS
-  );
-  const [partners, setPartners] = useState(
-    () => JSON.parse(localStorage.getItem("partners")) || DEFAULT_PARTNERS
-  );
+  const [events, setEvents] = useState([]);
+  const [banners, setBanners] = useState([]);
+  const [partners, setPartners] = useState([]);
 
   const [search, setSearch] = useState("");
   const [selectedEvent, setSelectedEvent] = useState(null);
@@ -115,20 +104,41 @@ export default function JadwalKonserBandung() {
   });
   const [newPartner, setNewPartner] = useState({ name: "", url: "" });
 
-  /* ================= EFFECTS ================= */
+  /* ================= EFFECTS (FIREBASE LISTENERS) ================= */
+  
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setLoading(false);
-    }, 2500); 
+    const timer = setTimeout(() => setLoading(false), 2500); 
     return () => clearTimeout(timer);
   }, []);
 
+  // Fetch EVENTS
   useEffect(() => {
-    localStorage.setItem("events", JSON.stringify(events));
-    localStorage.setItem("banners", JSON.stringify(banners));
-    localStorage.setItem("partners", JSON.stringify(partners));
-  }, [events, banners, partners]);
+    const unsubscribe = onSnapshot(collection(db, "events"), (snapshot) => {
+      const data = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
+      setEvents(data);
+    });
+    return () => unsubscribe();
+  }, []);
 
+  // Fetch BANNERS
+  useEffect(() => {
+    const unsubscribe = onSnapshot(collection(db, "banners"), (snapshot) => {
+      const data = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
+      setBanners(data);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // Fetch PARTNERS
+  useEffect(() => {
+    const unsubscribe = onSnapshot(collection(db, "partners"), (snapshot) => {
+      const data = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
+      setPartners(data);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // Auto Slide
   useEffect(() => {
     if (isDragging) return;
     const t = setInterval(() => {
@@ -184,46 +194,97 @@ export default function JadwalKonserBandung() {
     };
 
     const cameraText = partnerForm.cameraAccess 
-      ? "YA. Media Partner diizinkan membawa kamera profesional. Hasil foto/video boleh digunakan penyelenggara." 
+      ? "YA. Media Partner diizinkan membawa kamera profesional." 
       : "TIDAK / Belum ditentukan.";
 
     const subject = `Partnership - ${partnerForm.konserName}`;
-    const body = `Halo Tim Jadwal Konser Bandung,
-    
-Saya ingin mengajukan kerjasama media partner. Berikut detail acara kami:
-
-Nama Konser: ${partnerForm.konserName}
-Tanggal Acara: ${partnerForm.date}
-WhatsApp PIC: ${partnerForm.wa}
-
-Pilihan Kerjasama:
-${offerText[partnerForm.offer]}
-
-Akses Kamera Profesional:
-${cameraText}
-
-*Catatan: Saya telah melampirkan Logo Acara dan Poster Konser pada email ini secara manual.*
-
-Terima kasih.`;
+    const body = `Halo Tim Jadwal Konser Bandung,\n\nNama Konser: ${partnerForm.konserName}\nTanggal: ${partnerForm.date}\nWhatsApp: ${partnerForm.wa}\n\nKerjasama: ${offerText[partnerForm.offer]}\nKamera: ${cameraText}\n\n(Mohon lampirkan Logo & Poster)`;
 
     window.open(`mailto:jadwalkonserbandung@gmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`);
   };
 
-  // CRUD Functions
-  const handleAddEvent = () => {
+  // --- CRUD FIREBASE (BASE64 VERSION) ---
+
+  const handleAddEvent = async () => {
     if (!newEvent.title) return alert("Judul wajib diisi!");
-    setEvents([{ ...newEvent, id: Date.now(), slug: slugify(newEvent.title) }, ...events]);
-    setNewEvent({ title: "", date: "", location: "", price: "", ticket: "", map: "", description: "", image: "" });
+    setProcessing(true);
+    try {
+      await addDoc(collection(db, "events"), {
+        ...newEvent,
+        slug: slugify(newEvent.title),
+        createdAt: new Date()
+      });
+      setNewEvent({ title: "", date: "", location: "", price: "", ticket: "", map: "", description: "", image: "" });
+      alert("Event berhasil ditambahkan!");
+    } catch (e) {
+      console.error(e);
+      alert("Gagal menambahkan event. Cek ukuran gambar (Harus < 1MB).");
+    } finally {
+      setProcessing(false);
+    }
   };
 
-  const handleDeleteEvent = (id) => {
-    if (confirm("Yakin hapus event ini?")) setEvents(events.filter(e => e.id !== id));
+  const handleDeleteEvent = async (id) => {
+    if (confirm("Yakin hapus event ini?")) {
+      await deleteDoc(doc(db, "events", id));
+    }
   };
 
-  const handleSaveEdit = () => {
-    setEvents(events.map(e => e.id === editingEvent.id ? editingEvent : e));
-    setEditingEvent(null);
+  const handleSaveEdit = async () => {
+    if (!editingEvent) return;
+    setProcessing(true);
+    try {
+      const eventRef = doc(db, "events", editingEvent.id);
+      await updateDoc(eventRef, editingEvent);
+      setEditingEvent(null);
+      alert("Event berhasil diupdate!");
+    } catch (e) {
+      alert("Gagal update. Cek ukuran gambar.");
+    } finally {
+      setProcessing(false);
+    }
   };
+
+  // Helper untuk membaca file gambar jadi Base64
+  const handleFileSelect = async (e, type) => {
+    const file = e.target.files[0];
+    if(!file) return;
+    
+    setProcessing(true);
+    const base64 = await readFileBase64(file);
+    setProcessing(false);
+
+    if (base64) {
+      if (type === 'event') {
+        setNewEvent({ ...newEvent, image: base64 });
+      } else if (type === 'banner') {
+        // Langsung simpan banner
+        try {
+          await addDoc(collection(db, "banners"), { url: base64 });
+        } catch (err) {
+          alert("Gagal simpan banner. Gambar terlalu besar? (Max 1MB)");
+        }
+      }
+    }
+  };
+
+  const handleDeleteBanner = async (id) => {
+    if(confirm("Hapus banner ini?")) {
+      await deleteDoc(doc(db, "banners", id));
+    }
+  };
+
+  const handleAddPartner = async () => {
+    if(newPartner.name) {
+      await addDoc(collection(db, "partners"), newPartner);
+      setNewPartner({name:'', url:''});
+    }
+  };
+
+  const handleDeletePartner = async (id) => {
+    await deleteDoc(doc(db, "partners", id));
+  };
+
 
   /* ======================================================
      RENDER
@@ -263,7 +324,7 @@ Terima kasih.`;
               🎵
             </div>
             <h1 className="text-xl font-bold tracking-tighter">
-              JADWALKONSER<span className="text-[#31528b]">BDG</span>
+              JDWL<span className="text-[#31528b]">KNSRBDG</span>
             </h1>
           </div>
           
@@ -279,90 +340,97 @@ Terima kasih.`;
         {/* HERO BANNER - CAROUSEL */}
         <div className="mt-8 relative w-full overflow-hidden py-4">
           
-          {/* Track Carousel */}
-          <motion.div 
-            className="flex gap-4 items-center"
-            style={{ 
-              "--slide-width": "min(630px, 85vw)", 
-              "--gap": "16px" 
-            }}
-            animate={{ 
-              x: `calc(50% - (var(--slide-width) / 2) - (${bannerIndex} * (var(--slide-width) + var(--gap))))` 
-            }}
-            transition={{ type: "spring", stiffness: 200, damping: 25 }}
-            drag="x"
-            dragConstraints={{ left: 0, right: 0 }} 
-            dragElastic={0.1}
-            onDragStart={() => setIsDragging(true)}
-            onDragEnd={(e, i) => {
-              setIsDragging(false);
-              const off = i.offset.x;
-              const vel = i.velocity.x;
-              if (off < -50 || vel < -500) {
-                 setBannerIndex((p) => (p + 1) % banners.length);
-              } else if (off > 50 || vel > 500) {
-                 setBannerIndex((p) => (p - 1 + banners.length) % banners.length);
-              }
-            }}
-          >
-            {banners.map((src, index) => (
+          {banners.length === 0 ? (
+             <div className="w-full text-center py-10 bg-slate-200 border-2 border-black mx-auto max-w-[630px] rounded-2xl">
+               <p className="font-bold text-slate-500">Belum ada banner. Upload via Admin (Klik Logo 5x)</p>
+             </div>
+          ) : (
+            <>
+              {/* Track Carousel */}
               <motion.div 
-                key={index}
-                className={`relative shrink-0 rounded-2xl border-2 border-black bg-black overflow-hidden shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all duration-300`}
+                className="flex gap-4 items-center"
                 style={{ 
-                  width: "var(--slide-width)",
-                  aspectRatio: "630/140"
+                  "--slide-width": "min(630px, 85vw)", 
+                  "--gap": "16px" 
                 }}
-                animate={{
-                  scale: index === bannerIndex ? 1 : 0.9,
-                  opacity: index === bannerIndex ? 1 : 0.5,
-                  filter: index === bannerIndex ? "grayscale(0%)" : "grayscale(100%)"
+                animate={{ 
+                  x: `calc(50% - (var(--slide-width) / 2) - (${bannerIndex} * (var(--slide-width) + var(--gap))))` 
+                }}
+                transition={{ type: "spring", stiffness: 200, damping: 25 }}
+                drag="x"
+                dragConstraints={{ left: 0, right: 0 }} 
+                dragElastic={0.1}
+                onDragStart={() => setIsDragging(true)}
+                onDragEnd={(e, i) => {
+                  setIsDragging(false);
+                  const off = i.offset.x;
+                  const vel = i.velocity.x;
+                  if (off < -50 || vel < -500) {
+                    setBannerIndex((p) => (p + 1) % banners.length);
+                  } else if (off > 50 || vel > 500) {
+                    setBannerIndex((p) => (p - 1 + banners.length) % banners.length);
+                  }
                 }}
               >
-                <img 
-                  src={src} 
-                  className="w-full h-full object-cover opacity-90"
-                  draggable="false"
-                />
-                
-                {index === bannerIndex && (
-                  <div className="absolute inset-0 bg-black/20 flex flex-col items-center justify-center p-2">
-                    <h2 className="text-lg md:text-2xl font-black text-white tracking-tighter drop-shadow-[2px_2px_0px_rgba(0,0,0,1)] text-center leading-none">
-                       JELAJAHI MUSIK <span className="text-[#a6b5cf]">BANDUNG</span>
-                    </h2>
-                  </div>
-                )}
+                {banners.map((item, index) => (
+                  <motion.div 
+                    key={item.id}
+                    className={`relative shrink-0 rounded-2xl border-2 border-black bg-black overflow-hidden shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all duration-300`}
+                    style={{ 
+                      width: "var(--slide-width)",
+                      aspectRatio: "630/140"
+                    }}
+                    animate={{
+                      scale: index === bannerIndex ? 1 : 0.9,
+                      opacity: index === bannerIndex ? 1 : 0.5,
+                      filter: index === bannerIndex ? "grayscale(0%)" : "grayscale(100%)"
+                    }}
+                  >
+                    <img 
+                      src={item.url} 
+                      className="w-full h-full object-cover opacity-90"
+                      draggable="false"
+                    />
+                    
+                    {index === bannerIndex && (
+                      <div className="absolute inset-0 bg-black/20 flex flex-col items-center justify-center p-2">
+                        <h2 className="text-lg md:text-2xl font-black text-white tracking-tighter drop-shadow-[2px_2px_0px_rgba(0,0,0,1)] text-center leading-none">
+                          JELAJAHI MUSIK <span className="text-[#a6b5cf]">BANDUNG</span>
+                        </h2>
+                      </div>
+                    )}
+                  </motion.div>
+                ))}
               </motion.div>
-            ))}
-          </motion.div>
 
-          {/* Navigation Dots */}
-          <div className="flex justify-center gap-2 mt-6">
-            {banners.map((_, idx) => (
-              <button 
-                key={idx}
-                onClick={() => setBannerIndex(idx)}
-                className={`w-3 h-3 rounded-full border border-black shadow-sm transition-all ${idx === bannerIndex ? 'bg-[#a6b5cf] scale-125' : 'bg-white'}`}
-              />
-            ))}
-          </div>
+              {/* Navigation Dots */}
+              <div className="flex justify-center gap-2 mt-6">
+                {banners.map((_, idx) => (
+                  <button 
+                    key={idx}
+                    onClick={() => setBannerIndex(idx)}
+                    className={`w-3 h-3 rounded-full border border-black shadow-sm transition-all ${idx === bannerIndex ? 'bg-[#a6b5cf] scale-125' : 'bg-white'}`}
+                  />
+                ))}
+              </div>
 
-          {/* Side Buttons */}
-          <div className="hidden md:block">
-            <button 
-              onClick={() => setBannerIndex((prev) => (prev - 1 + banners.length) % banners.length)}
-              className="absolute left-10 top-1/2 -translate-y-1/2 bg-white p-2 rounded-full border-2 border-black hover:bg-[#a6b5cf] shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-y-[-40%] active:shadow-none transition-all z-10"
-            >
-              <ChevronLeft size={24} />
-            </button>
-            <button 
-              onClick={() => setBannerIndex((prev) => (prev + 1) % banners.length)}
-              className="absolute right-10 top-1/2 -translate-y-1/2 bg-white p-2 rounded-full border-2 border-black hover:bg-[#a6b5cf] shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-y-1 active:shadow-none transition-all z-10"
-            >
-              <ChevronRight size={24} />
-            </button>
-          </div>
-
+              {/* Side Buttons */}
+              <div className="hidden md:block">
+                <button 
+                  onClick={() => setBannerIndex((prev) => (prev - 1 + banners.length) % banners.length)}
+                  className="absolute left-10 top-1/2 -translate-y-1/2 bg-white p-2 rounded-full border-2 border-black hover:bg-[#a6b5cf] shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-y-[-40%] active:shadow-none transition-all z-10"
+                >
+                  <ChevronLeft size={24} />
+                </button>
+                <button 
+                  onClick={() => setBannerIndex((prev) => (prev + 1) % banners.length)}
+                  className="absolute right-10 top-1/2 -translate-y-1/2 bg-white p-2 rounded-full border-2 border-black hover:bg-[#a6b5cf] shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-y-1 active:shadow-none transition-all z-10"
+                >
+                  <ChevronRight size={24} />
+                </button>
+              </div>
+            </>
+          )}
         </div>
 
         {/* CONTAINER FOR CONTENT */}
@@ -385,6 +453,13 @@ Terima kasih.`;
 
           {/* EVENT GRID */}
           <div className="mt-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+            {filteredEvents.length === 0 && !loading && (
+               <div className="col-span-full text-center py-20 opacity-50">
+                  <Database size={48} className="mx-auto mb-2"/>
+                  <p className="font-bold">Belum ada event / tidak ditemukan.</p>
+               </div>
+            )}
+
             {filteredEvents.map((event) => (
               <motion.div
                 layoutId={`card-${event.id}`}
@@ -437,7 +512,7 @@ Terima kasih.`;
               className="cursor-pointer border-4 border-black bg-[#a6b5cf] p-6 md:p-8 mb-12 text-center shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[4px] hover:translate-y-[4px] transition-all rounded-2xl"
             >
                <h2 className="text-2xl md:text-4xl font-black italic tracking-tighter uppercase mb-2">
-                 ✨ Ayo Jadikan <span className="text-[#31528b] bg-white px-2">JADWALKONSERBDG</span> Media Partner! ✨
+                 ✨ Ayo Jadikan <span className="text-[#31528b] bg-white px-2">JDWLKNSRBDG</span> Media Partner! ✨
                </h2>
                <p className="font-bold text-lg underline decoration-wavy decoration-black">Klik di sini untuk kerjasama & boost eventmu!</p>
             </motion.div>
@@ -471,7 +546,7 @@ Terima kasih.`;
                 🎵
               </div>
               <h2 className="text-3xl font-black tracking-tighter">
-                JADWALKONSER<span className="text-[#31528b]">BDG</span>
+                JDWL<span className="text-[#31528b]">KNSRBDG</span>
               </h2>
             </div>
             <p className="text-slate-400 max-w-sm leading-relaxed">
@@ -491,7 +566,6 @@ Terima kasih.`;
             <h3 className="text-lg font-bold mb-4 text-[#a6b5cf] uppercase tracking-widest">Connect</h3>
             <div className="flex gap-4">
               
-              {/* INSTAGRAM LINK UPDATED */}
               <a 
                 href="https://www.instagram.com/jadwalkonserbandung/" 
                 target="_blank" 
@@ -501,7 +575,6 @@ Terima kasih.`;
                 <Instagram size={20} />
               </a>
               
-              {/* TIKTOK LINK UPDATED */}
               <a 
                 href="https://www.tiktok.com/@jadwalkonserbandung" 
                 target="_blank"
@@ -530,7 +603,7 @@ Terima kasih.`;
               <a href="#" className="bg-white text-black p-2 rounded-full hover:bg-[#a6b5cf] hover:scale-110 transition-all"><Mail size={20} /></a>
             </div>
             <div className="mt-6">
-              <p className="text-xs text-slate-500">© 2026 JADWALKONSERBDG.</p>
+              <p className="text-xs text-slate-500">© 2026 JDWLKNSRBDG.</p>
               <p className="text-xs text-slate-500">All rights reserved.</p>
             </div>
           </div>
@@ -552,7 +625,7 @@ Terima kasih.`;
                   <div className="bg-black text-white p-6 md:p-8 flex justify-between items-start border-b-4 border-[#a6b5cf] rounded-t-2xl">
                      <div>
                         <h2 className="text-3xl font-black italic tracking-tighter text-[#a6b5cf] mb-2">KERJASAMA MEDIA PARTNER</h2>
-                        <p className="text-slate-300 font-medium">Isi form di bawah untuk kolaborasi epik bareng JADWALKONSERBDG!</p>
+                        <p className="text-slate-300 font-medium">Isi form di bawah untuk kolaborasi epik bareng JDWLKNSRBDG!</p>
                      </div>
                      <button onClick={() => setShowPartnershipModal(false)} className="bg-white text-black p-2 rounded-full hover:bg-red-500 hover:text-white transition-colors">
                        <X size={24} />
@@ -817,9 +890,9 @@ Terima kasih.`;
                             <textarea placeholder="Deskripsi Singkat" className="w-full p-3 bg-slate-50 border rounded-lg h-24" value={newEvent.description} onChange={e => setNewEvent({...newEvent, description: e.target.value})} />
                             
                             <div className="flex items-center gap-2">
-                              <label className="flex-1 cursor-pointer bg-slate-100 border-2 border-dashed border-slate-300 p-4 rounded-lg text-center hover:bg-slate-200 transition">
-                                <span className="text-sm font-bold text-slate-500">📸 Upload Gambar</span>
-                                <input type="file" className="hidden" onChange={async (e) => setNewEvent({...newEvent, image: await readFile(e.target.files[0])})} />
+                              <label className={`flex-1 cursor-pointer bg-slate-100 border-2 border-dashed border-slate-300 p-4 rounded-lg text-center hover:bg-slate-200 transition ${processing ? 'opacity-50' : ''}`}>
+                                <span className="text-sm font-bold text-slate-500">{processing ? "Processing..." : "📸 Upload Gambar (Max 1MB)"}</span>
+                                <input type="file" className="hidden" onChange={(e) => handleFileSelect(e, 'event')} />
                               </label>
                               {newEvent.image && <img src={newEvent.image} className="h-16 w-16 rounded object-cover border border-black" />}
                             </div>
@@ -827,9 +900,9 @@ Terima kasih.`;
                             <button 
                               onClick={handleAddEvent}
                               className="w-full bg-[#a6b5cf] border-2 border-black text-black py-3 rounded-xl font-black hover:bg-[#8da0c1] shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-y-1 active:shadow-none transition-all"
+                              disabled={processing}
                             >
-                              <Plus className="inline mr-2" size={18} />
-                              PUBLISH EVENT
+                              {processing ? "Loading..." : "PUBLISH EVENT"}
                             </button>
                          </div>
 
@@ -857,16 +930,16 @@ Terima kasih.`;
                     {/* BANNER TAB */}
                     {adminTab === 'banner' && (
                       <div>
-                        <label className="block w-full cursor-pointer bg-slate-100 border-2 border-dashed border-[#31528b] p-8 rounded-xl text-center hover:bg-blue-50 transition mb-6">
+                        <label className={`block w-full cursor-pointer bg-slate-100 border-2 border-dashed border-[#31528b] p-8 rounded-xl text-center hover:bg-blue-50 transition mb-6 ${processing ? 'opacity-50' : ''}`}>
                            <Upload className="mx-auto mb-2 text-[#31528b]" />
-                           <span className="font-bold text-[#31528b]">Tambah Banner Baru</span>
-                           <input type="file" className="hidden" onChange={async (e) => setBanners([...banners, await readFile(e.target.files[0])])} />
+                           <span className="font-bold text-[#31528b]">{processing ? "Processing..." : "Tambah Banner Baru (Max 1MB)"}</span>
+                           <input type="file" className="hidden" onChange={(e) => handleFileSelect(e, 'banner')} />
                         </label>
                         <div className="grid grid-cols-2 gap-4">
                           {banners.map((b, i) => (
                             <div key={i} className="relative group rounded-xl overflow-hidden border-2 border-slate-200">
-                               <img src={b} className="w-full h-32 object-cover" />
-                               <button onClick={() => setBanners(banners.filter((_, idx) => idx !== i))} className="absolute top-2 right-2 bg-red-500 text-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 size={16} /></button>
+                               <img src={b.url} className="w-full h-32 object-cover" />
+                               <button onClick={() => handleDeleteBanner(b.id)} className="absolute top-2 right-2 bg-red-500 text-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 size={16} /></button>
                             </div>
                           ))}
                         </div>
@@ -879,13 +952,13 @@ Terima kasih.`;
                           <div className="flex gap-2">
                              <input placeholder="Nama Partner" className="flex-1 p-3 bg-slate-50 border rounded-lg" value={newPartner.name} onChange={e => setNewPartner({...newPartner, name: e.target.value})} />
                              <input placeholder="URL Link" className="flex-1 p-3 bg-slate-50 border rounded-lg" value={newPartner.url} onChange={e => setNewPartner({...newPartner, url: e.target.value})} />
-                             <button onClick={() => { if(newPartner.name) { setPartners([...partners, {...newPartner, id: Date.now()}]); setNewPartner({name:'', url:''}); } }} className="bg-black text-white px-6 rounded-lg font-bold">ADD</button>
+                             <button onClick={handleAddPartner} className="bg-black text-white px-6 rounded-lg font-bold">ADD</button>
                           </div>
                           <div className="grid gap-2">
                             {partners.map(p => (
                               <div key={p.id} className="flex justify-between items-center bg-white p-4 border rounded-xl">
                                 <span className="font-bold">{p.name}</span>
-                                <button onClick={() => setPartners(partners.filter(x => x.id !== p.id))} className="text-red-500 font-bold text-sm hover:underline">Hapus</button>
+                                <button onClick={() => handleDeletePartner(p.id)} className="text-red-500 font-bold text-sm hover:underline">Hapus</button>
                               </div>
                             ))}
                           </div>
