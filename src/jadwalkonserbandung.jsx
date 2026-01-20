@@ -179,7 +179,7 @@ export default function JadwalKonserBandung() {
         <div className="max-w-6xl mx-auto px-6 py-4 flex justify-between items-center">
           <div className="flex items-center gap-2 cursor-pointer select-none group" onClick={handleSecretTrigger}>
             <div className="w-8 h-8 bg-[#a6b5cf] border-2 border-black rounded-full flex items-center justify-center shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] group-active:translate-y-1 group-active:shadow-none transition-all">🎵</div>
-            <h1 className="text-xl font-bold tracking-tighter">JDWL<span className="text-[#31528b]">KNSRBDG</span></h1>
+            <h1 className="text-xl font-bold tracking-tighter">JADWALKONSER<span className="text-[#31528b]">BANDUNG</span></h1>
           </div>
           <div className="flex gap-4 text-sm font-bold">
             <a href="#" className="hover:text-[#31528b] transition-colors">HOME</a>
@@ -201,7 +201,6 @@ export default function JadwalKonserBandung() {
                 {banners.map((item, index) => (
                   <motion.div key={item.id} className="relative shrink-0 rounded-2xl border-2 border-black bg-black overflow-hidden shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all duration-300" style={{ width: "var(--slide-width)", aspectRatio: "630/140" }} animate={{ scale: index === bannerIndex ? 1 : 0.9, opacity: index === bannerIndex ? 1 : 0.5, filter: index === bannerIndex ? "grayscale(0%)" : "grayscale(100%)" }}>
                     <img src={item.url} className="w-full h-full object-cover opacity-90" draggable="false" />
-                    {index === bannerIndex && <div className="absolute inset-0 bg-black/20 flex flex-col items-center justify-center p-2"><h2 className="text-lg md:text-2xl font-black text-white tracking-tighter drop-shadow-[2px_2px_0px_rgba(0,0,0,1)] text-center leading-none">JELAJAHI MUSIK <span className="text-[#a6b5cf]">BANDUNG</span></h2></div>}
                   </motion.div>
                 ))}
               </motion.div>
@@ -240,7 +239,7 @@ export default function JadwalKonserBandung() {
           {/* PARTNERSHIP SECTION */}
           <div id="partners" className="mt-24 border-t-4 border-black pt-10 pb-20">
             <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={() => setShowPartnershipModal(true)} className="cursor-pointer border-4 border-black bg-[#a6b5cf] p-6 md:p-8 mb-12 text-center shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[4px] hover:translate-y-[4px] transition-all rounded-2xl">
-               <h2 className="text-2xl md:text-4xl font-black italic tracking-tighter uppercase mb-2">✨ AYO JADIKAN <span className="text-[#31528b] bg-white px-2">JDWLKNSRBDG</span> MEDIA PARTNER! ✨</h2>
+               <h2 className="text-2xl md:text-4xl font-black italic tracking-tighter uppercase mb-2">AYO JADIKAN <span className="text-[#31528b] bg-white px-2">JADWALKONSERBDG</span> MEDIA PARTNER! </h2>
                <p className="font-bold text-lg underline decoration-wavy decoration-black">Klik di sini untuk kerjasama & boost eventmu!</p>
             </motion.div>
             <div className="flex flex-col md:flex-row items-center justify-between mb-8"><h3 className="text-3xl font-black uppercase italic tracking-tighter">Official Partners</h3><p className="text-slate-500 font-medium">Didukung oleh brand terbaik</p></div>
@@ -257,7 +256,7 @@ export default function JadwalKonserBandung() {
           <div className="col-span-1 md:col-span-2">
             <div className="flex items-center gap-2 mb-4">
               <div className="w-10 h-10 bg-[#a6b5cf] text-black rounded-full flex items-center justify-center text-xl font-bold border-2 border-white">🎵</div>
-              <h2 className="text-3xl font-black tracking-tighter">JDWL<span className="text-[#31528b]">KNSRBDG</span></h2>
+              <h2 className="text-3xl font-black tracking-tighter">JADWALKONSER<span className="text-[#31528b]">BANDUNG</span></h2>
             </div>
             <p className="text-slate-400 max-w-sm leading-relaxed">Platform informasi jadwal konser paling update di Bandung. Temukan gig favoritmu, beli tiket, dan rasakan atmosfer musik kota kembang.</p>
           </div>
@@ -280,7 +279,7 @@ export default function JadwalKonserBandung() {
               <a href="#" className="bg-white text-black p-2 rounded-full hover:bg-[#a6b5cf] hover:scale-110 transition-all"><Facebook size={20} /></a>
               <a href="#" className="bg-white text-black p-2 rounded-full hover:bg-[#a6b5cf] hover:scale-110 transition-all"><Mail size={20} /></a>
             </div>
-            <div className="mt-6"><p className="text-xs text-slate-500">© 2026 JDWLKNSRBDG.</p><p className="text-xs text-slate-500">All rights reserved.</p></div>
+            <div className="mt-6"><p className="text-xs text-slate-500">© 2026 JADWALKONSERBANDUNG.</p><p className="text-xs text-slate-500">All rights reserved.</p></div>
           </div>
         </div>
       </footer>
@@ -358,7 +357,7 @@ export default function JadwalKonserBandung() {
              <div className="flex min-h-full items-center justify-center p-4">
                <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="bg-[#FDFBF7] w-full max-w-4xl rounded-3xl border-4 border-[#a6b5cf] shadow-[10px_10px_0px_0px_rgba(255,255,255,0.2)] flex flex-col my-8">
                   <div className="bg-black text-white p-6 md:p-8 flex justify-between items-start border-b-4 border-[#a6b5cf] rounded-t-2xl">
-                     <div><h2 className="text-3xl font-black italic tracking-tighter text-[#a6b5cf] mb-2">KERJASAMA MEDIA PARTNER</h2><p className="text-slate-300 font-medium">Isi form di bawah untuk kolaborasi epik bareng JDWLKNSRBDG!</p></div>
+                     <div><h2 className="text-3xl font-black italic tracking-tighter text-[#a6b5cf] mb-2">KERJASAMA MEDIA PARTNER</h2><p className="text-slate-300 font-medium">Isi form di bawah untuk kolaborasi epik bareng JADWALKONSERBANDUNG!</p></div>
                      <button onClick={() => setShowPartnershipModal(false)} className="bg-white text-black p-2 rounded-full hover:bg-red-500 hover:text-white transition-colors"><X size={24} /></button>
                   </div>
                   <div className="p-6 md:p-8 flex flex-col md:flex-row gap-8">
