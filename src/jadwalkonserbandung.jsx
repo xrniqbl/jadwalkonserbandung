@@ -2,25 +2,26 @@ import React, { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   X, MapPin, Calendar, Ticket, ChevronRight, Plus, Trash2, 
-  Edit2, Upload, ChevronLeft, Lock, Instagram, Facebook, Mail, CheckCircle, Database, Loader 
+  Edit2, Upload, ChevronLeft, Lock, Instagram, Facebook, Mail, CheckCircle, Database, Loader, 
+  Settings, Disc, Music, AlertTriangle, Menu // <--- Menu Icon ditambahkan
 } from "lucide-react";
 
 // --- SUPABASE IMPORTS ---
 import { createClient } from '@supabase/supabase-js';
 
 /* ======================================================
-   CONFIG SUPABASE (WAJIB DIGANTI)
+   CONFIG SUPABASE
+   Pastikan Key ini benar sesuai Dashboard Anda
 ====================================================== */
 const supabaseUrl = 'https://czqjoounutrvjvooyvfy.supabase.co'; 
-const supabaseKey = 'sb_publishable_uNE3lE2LPlfOvp3OXvkf8Q_29bn8d2G'; // <--- PASTE KEY "ANON" ANDA DI SINI
+const supabaseKey = 'sb_publishable_uNE3lE2LPlfOvp3OXvkf8Q_29bn8d2G'; // Key dari file Anda
 
-// Initialize Supabase
 let supabase;
 try {
   if (supabaseKey && !supabaseKey.includes('MASUKKAN')) {
     supabase = createClient(supabaseUrl, supabaseKey);
   } else {
-    console.warn("Supabase Key belum diisi. Fitur database tidak akan jalan.");
+    console.warn("Supabase Key belum diisi/salah.");
   }
 } catch (e) {
   console.error("Supabase Init Error:", e);
@@ -30,12 +31,55 @@ try {
    APP CONFIG
 ====================================================== */
 const ADMIN_PASSWORD = "admin123";
+const slugify = (t = "") => t.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
 
 /* ======================================================
-   UTIL
+   KOMPONEN MAINTENANCE PAGE
 ====================================================== */
-const slugify = (t = "") =>
-  t.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+const MaintenancePage = ({ onSecretTrigger }) => {
+  return (
+    <div className="fixed inset-0 bg-[#FDFBF7] z-[50] flex flex-col items-center justify-center p-6 text-center overflow-hidden">
+      <div className="absolute top-[-10%] left-[-10%] w-64 h-64 bg-[#a6b5cf] rounded-full blur-3xl opacity-30"></div>
+      <div className="absolute bottom-[-10%] right-[-10%] w-80 h-80 bg-[#31528b] rounded-full blur-3xl opacity-20"></div>
+
+      <motion.div 
+        initial={{ scale: 0.8, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        className="relative z-10 max-w-lg w-full border-4 border-black bg-white p-8 rounded-3xl shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]"
+      >
+        <div className="relative w-32 h-32 mx-auto mb-6">
+          <motion.div 
+            animate={{ rotate: 360 }}
+            transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
+            className="w-full h-full rounded-full bg-black flex items-center justify-center border-4 border-black"
+          >
+             <div className="w-12 h-12 bg-[#a6b5cf] rounded-full flex items-center justify-center">
+                <div className="w-3 h-3 bg-black rounded-full"></div>
+             </div>
+             <div className="absolute inset-2 border border-slate-700 rounded-full opacity-50"></div>
+             <div className="absolute inset-6 border border-slate-700 rounded-full opacity-50"></div>
+          </motion.div>
+          <motion.div animate={{ y: [-10, -30], opacity: [1, 0] }} transition={{ duration: 2, repeat: Infinity }} className="absolute top-0 right-0 text-[#31528b]">
+            <Music size={24} />
+          </motion.div>
+        </div>
+
+        <h1 className="text-4xl font-black tracking-tighter mb-2 text-black">LAGI <span className="text-[#31528b]">CHECKSOUND</span> 🎤</h1>
+        <div className="h-1 w-20 bg-black mx-auto mb-4"></div>
+        <p className="text-lg font-bold text-slate-600 mb-6">Sabar ya bestie! Website lagi di-stem ulang biar nadanya pas. Balik lagi nanti ya!</p>
+
+        <div className="flex justify-center gap-4 text-sm font-bold text-[#31528b]">
+           <span className="flex items-center gap-1"><div className="w-2 h-2 bg-[#31528b] rounded-full animate-pulse"></div> Tuning Servers</span>
+        </div>
+
+        <div onClick={onSecretTrigger} className="absolute top-4 left-4 cursor-pointer select-none opacity-50 hover:opacity-100 transition-opacity" title="Admin Login">
+           <div className="w-8 h-8 bg-[#a6b5cf] border-2 border-black rounded-full flex items-center justify-center">🎵</div>
+        </div>
+      </motion.div>
+      <div className="mt-8 font-bold text-black opacity-50 text-sm">&copy; 2026 JDWLKNSRBDG.</div>
+    </div>
+  );
+};
 
 /* ======================================================
    MAIN COMPONENT
@@ -44,6 +88,8 @@ export default function JadwalKonserBandung() {
   /* ================= STATE ================= */
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [maintenanceMode, setMaintenanceMode] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false); // <--- State untuk Menu Mobile
 
   const [events, setEvents] = useState([]);
   const [banners, setBanners] = useState([]);
@@ -79,12 +125,19 @@ export default function JadwalKonserBandung() {
   /* ================= EFFECTS ================= */
   const fetchData = async () => {
     if (!supabase) return;
+    
+    // 1. Cek Maintenance
+    const { data: settings } = await supabase.from('app_settings').select('value').eq('key', 'maintenance_mode').single();
+    if (settings) setMaintenanceMode(settings.value);
+
+    // 2. Fetch Data
     const { data: ev } = await supabase.from('events').select('*').order('id', { ascending: false });
     if (ev) setEvents(ev);
     const { data: bn } = await supabase.from('banners').select('*').order('id', { ascending: false });
     if (bn) setBanners(bn);
     const { data: pt } = await supabase.from('partners').select('*').order('id', { ascending: true });
     if (pt) setPartners(pt);
+
     setLoading(false);
   };
 
@@ -96,7 +149,7 @@ export default function JadwalKonserBandung() {
         .subscribe();
       return () => { supabase.removeChannel(channel); };
     } else {
-      setLoading(false); // Stop loading if no supabase
+      setLoading(false);
     }
   }, []);
 
@@ -108,12 +161,10 @@ export default function JadwalKonserBandung() {
     return () => clearInterval(t);
   }, [banners, isDragging]);
 
-  /* ================= HELPER: UPLOAD ================= */
+  /* ================= HANDLERS ================= */
   const handleUploadImage = async (file) => {
     if (!file || !supabase) return null;
-    if (file.size > 10 * 1024 * 1024) {
-      alert("File max 10MB!"); return null;
-    }
+    if (file.size > 10 * 1024 * 1024) { alert("File max 10MB!"); return null; }
     setUploading(true);
     try {
       const fileExt = file.name.split('.').pop();
@@ -124,12 +175,10 @@ export default function JadwalKonserBandung() {
       setUploading(false);
       return data.publicUrl;
     } catch (error) {
-      console.error(error); alert("Gagal upload. Cek Bucket 'images' public?");
-      setUploading(false); return null;
+      console.error(error); alert("Gagal upload. Cek Bucket 'images' public?"); setUploading(false); return null;
     }
   };
 
-  /* ================= HANDLERS ================= */
   const filteredEvents = useMemo(() => {
     return events.filter((e) => e.title && e.title.toLowerCase().includes(search.toLowerCase())).sort((a, b) => b.id - a.id);
   }, [events, search]);
@@ -142,13 +191,21 @@ export default function JadwalKonserBandung() {
     });
   };
 
+  const toggleMaintenance = async () => {
+    if(!isAdmin) return;
+    const newValue = !maintenanceMode;
+    setMaintenanceMode(newValue);
+    const { error } = await supabase.from('app_settings').upsert({ key: 'maintenance_mode', value: newValue });
+    if (error) { alert("Gagal simpan setting maintenance: " + error.message); setMaintenanceMode(!newValue); }
+  };
+
   const handleSubmitPartnership = () => {
     if (!partnerForm.konserName) return alert("Isi nama konser!");
     const offerText = {
       opt1: "Bundling 2/3 Tiket + Akses Mudah", opt2: "Fee Posting", opt3: "Bundling 2/3 Tiket + Akses Biasa", opt4: partnerForm.customOfferText
     }[partnerForm.offer];
     const subject = `Partnership - ${partnerForm.konserName}`;
-    const body = `Halo JDWLKNSRBDG,\n\nEvent: ${partnerForm.konserName}\nTanggal: ${partnerForm.date}\nWA: ${partnerForm.wa}\nKerjasama: ${offerText}\nKamera: ${partnerForm.cameraAccess ? 'Ya' : 'Tidak'}`;
+    const body = `Halo JDWLKNSRBDG,\n\nEvent: ${partnerForm.konserName}\nTanggal: ${partnerForm.date}\nWA: ${partnerForm.wa}\nKerjasama: ${offerText}`;
     window.open(`mailto:jadwalkonserbandung@gmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`);
   };
 
@@ -159,132 +216,188 @@ export default function JadwalKonserBandung() {
     const { error } = await supabase.from('events').insert([{ ...newEvent, slug: slugify(newEvent.title) }]);
     setUploading(false);
     if (error) alert("Error: " + error.message);
-    else { setNewEvent({ title: "", date: "", location: "", price: "", ticket: "", map: "", description: "", image: "" }); alert("Sukses!"); }
+    else { setNewEvent({ title: "", date: "", location: "", price: "", ticket: "", map: "", description: "", image: "" }); alert("Sukses!"); fetchData(); }
   };
-  const handleDeleteEvent = async (id) => { if (confirm("Hapus?")) await supabase.from('events').delete().eq('id', id); };
-  const handleSaveEdit = async () => { if (editingEvent) { await supabase.from('events').update(editingEvent).eq('id', editingEvent.id); setEditingEvent(null); alert("Updated!"); } };
-  const handleBannerUpload = async (file) => { const url = await handleUploadImage(file); if (url) await supabase.from('banners').insert([{ url }]); };
-  const handleDeleteBanner = async (id) => { if (confirm("Hapus?")) await supabase.from('banners').delete().eq('id', id); };
-  const handleAddPartner = async () => { if (newPartner.name) { await supabase.from('partners').insert([newPartner]); setNewPartner({ name: '', url: '' }); } };
-  const handleDeletePartner = async (id) => { await supabase.from('partners').delete().eq('id', id); };
+  const handleDeleteEvent = async (id) => { if (confirm("Hapus?")) { await supabase.from('events').delete().eq('id', id); fetchData(); }};
+  const handleSaveEdit = async () => {
+    if (!editingEvent) return;
+    setUploading(true);
+    const { id, created_at, ...updates } = newEvent;
+    await supabase.from('events').update(updates).eq('id', editingEvent.id);
+    setUploading(false);
+    setEditingEvent(null);
+    alert("Updated!");
+    fetchData();
+  };
+  const handleBannerUpload = async (file) => { const url = await handleUploadImage(file); if (url) { await supabase.from('banners').insert([{ url }]); fetchData(); }};
+  const handleDeleteBanner = async (id) => { if (confirm("Hapus?")) { await supabase.from('banners').delete().eq('id', id); fetchData(); }};
+  const handleAddPartner = async () => { if (newPartner.name) { await supabase.from('partners').insert([newPartner]); setNewPartner({ name: '', url: '' }); fetchData(); } };
+  const handleDeletePartner = async (id) => { await supabase.from('partners').delete().eq('id', id); fetchData(); };
 
   /* ================= RENDER ================= */
   if (loading) return <div className="fixed inset-0 bg-black flex flex-col items-center justify-center z-[9999] text-white">Loading...</div>;
 
+  const isMaintenanceActive = maintenanceMode && !isAdmin;
+
   return (
-    <div className="min-h-screen bg-[#FDFBF7] text-slate-900 font-sans selection:bg-[#a6b5cf] selection:text-black overflow-x-hidden flex flex-col">
-      
-      {/* NAVBAR */}
-      <nav className="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b-2 border-black">
-        <div className="max-w-6xl mx-auto px-6 py-4 flex justify-between items-center">
-          <div className="flex items-center gap-2 cursor-pointer select-none group" onClick={handleSecretTrigger}>
-            <div className="w-8 h-8 bg-[#a6b5cf] border-2 border-black rounded-full flex items-center justify-center shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] group-active:translate-y-1 group-active:shadow-none transition-all">🎵</div>
-            <h1 className="text-xl font-bold tracking-tighter">JADWALKONSER<span className="text-[#31528b]">BANDUNG</span></h1>
-          </div>
-          <div className="flex gap-4 text-sm font-bold">
-            <a href="#" className="hover:text-[#31528b] transition-colors">HOME</a>
-            <a href="#partners" className="hover:text-[#31528b] transition-colors">PARTNERS</a>
-          </div>
-        </div>
-      </nav>
+    <>
+      {isMaintenanceActive && <MaintenancePage onSecretTrigger={handleSecretTrigger} />}
 
-      {/* CONTENT */}
-      <main className="w-full flex-grow">
+      <div className={`min-h-screen bg-[#FDFBF7] text-slate-900 font-sans selection:bg-[#a6b5cf] selection:text-black overflow-x-hidden flex flex-col ${isMaintenanceActive ? 'hidden' : ''}`}>
         
-        {/* BANNER */}
-        <div className="mt-8 relative w-full overflow-hidden py-4">
-          {banners.length === 0 ? (
-             <div className="w-full text-center py-10 bg-slate-200 border-2 border-black mx-auto max-w-[630px] rounded-2xl"><p className="font-bold text-slate-500">{supabase ? "Belum ada banner." : "Setup Supabase dulu!"}</p></div>
-          ) : (
-            <>
-              <motion.div className="flex gap-4 items-center" style={{ "--slide-width": "min(630px, 85vw)", "--gap": "16px" }} animate={{ x: `calc(50% - (var(--slide-width) / 2) - (${bannerIndex} * (var(--slide-width) + var(--gap))))` }} transition={{ type: "spring", stiffness: 200, damping: 25 }} drag="x" dragConstraints={{ left: 0, right: 0 }} dragElastic={0.1} onDragStart={() => setIsDragging(true)} onDragEnd={(e, i) => { setIsDragging(false); if (i.offset.x < -50 || i.velocity.x < -500) setBannerIndex((p) => (p + 1) % banners.length); else if (i.offset.x > 50 || i.velocity.x > 500) setBannerIndex((p) => (p - 1 + banners.length) % banners.length); }}>
-                {banners.map((item, index) => (
-                  <motion.div key={item.id} className="relative shrink-0 rounded-2xl border-2 border-black bg-black overflow-hidden shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all duration-300" style={{ width: "var(--slide-width)", aspectRatio: "630/140" }} animate={{ scale: index === bannerIndex ? 1 : 0.9, opacity: index === bannerIndex ? 1 : 0.5, filter: index === bannerIndex ? "grayscale(0%)" : "grayscale(100%)" }}>
-                    <img src={item.url} className="w-full h-full object-cover opacity-90" draggable="false" />
-                  </motion.div>
-                ))}
-              </motion.div>
-              <div className="flex justify-center gap-2 mt-6">{banners.map((_, idx) => (<button key={idx} onClick={() => setBannerIndex(idx)} className={`w-3 h-3 rounded-full border border-black shadow-sm transition-all ${idx === bannerIndex ? 'bg-[#a6b5cf] scale-125' : 'bg-white'}`} />))}</div>
-            </>
-          )}
-        </div>
+        {/* NAVBAR RESPONSIVE */}
+        <nav className="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b-2 border-black">
+          <div className="max-w-6xl mx-auto px-6 py-4">
+            <div className="flex justify-between items-center">
+              {/* LOGO & BRAND */}
+              <div className="flex items-center gap-2 cursor-pointer select-none group" onClick={handleSecretTrigger}>
+                <div className="w-8 h-8 bg-[#a6b5cf] border-2 border-black rounded-full flex items-center justify-center shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] group-active:translate-y-1 group-active:shadow-none transition-all">🎵</div>
+                <h1 className="text-xl font-bold tracking-tighter">JDWL<span className="text-[#31528b]">KNSRBDG</span></h1>
+              </div>
 
-        <div className="max-w-6xl mx-auto px-6">
-          <div className="mt-6 flex flex-col md:flex-row gap-4 items-center">
-            <div className="relative w-full">
-              <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Cari konser favoritmu..." className="w-full bg-white border-2 border-black rounded-xl px-5 py-4 text-lg font-medium focus:outline-none focus:ring-4 focus:ring-[#a6b5cf] transition-all shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]" />
-              <div className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400">🔍</div>
+              {/* MENU DESKTOP (Hanya muncul di layar sedang-besar) */}
+              <div className="hidden md:flex gap-4 text-sm font-bold">
+                <a href="#" className="hover:text-[#31528b] transition-colors">HOME</a>
+                <a href="#partners" className="hover:text-[#31528b] transition-colors">PARTNERS</a>
+              </div>
+
+              {/* TOMBOL HAMBURGER (Hanya muncul di HP/Layar kecil) */}
+              <button 
+                className="md:hidden p-2 text-black hover:bg-slate-100 rounded-lg transition-colors"
+                onClick={() => setIsMenuOpen(!isMenuOpen)}
+              >
+                {/* Ganti icon X atau Garis Tiga */}
+                {isMenuOpen ? <X size={28} /> : <Menu size={28} />}
+              </button>
             </div>
-          </div>
 
-          <div className="mt-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-            {filteredEvents.length === 0 && !loading && <div className="col-span-full text-center py-20 opacity-50"><Database size={48} className="mx-auto mb-2"/><p className="font-bold">Belum ada event.</p></div>}
-            {filteredEvents.map((event) => (
-              <motion.div layoutId={`card-${event.id}`} key={event.id} onClick={() => setSelectedEvent(event)} whileHover={{ y: -8 }} className="bg-white rounded-2xl border-2 border-black overflow-hidden cursor-pointer shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:shadow-[10px_10px_0px_0px_#31528b] transition-all group">
-                <div className="relative h-48 overflow-hidden border-b-2 border-black">
-                  <motion.img layoutId={`img-${event.id}`} src={event.image} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
-                  <div className="absolute top-3 right-3 bg-white border-2 border-black px-3 py-1 text-sm font-bold rounded-full shadow-sm">{event.price}</div>
-                </div>
-                <div className="p-5">
-                  <motion.h3 layoutId={`title-${event.id}`} className="text-xl font-black mb-2 leading-tight">{event.title}</motion.h3>
-                  <div className="space-y-2 text-sm font-medium text-slate-600">
-                    <div className="flex items-center gap-2"><Calendar className="w-4 h-4 text-[#31528b]" /><span>{event.date}</span></div>
-                    <div className="flex items-center gap-2"><MapPin className="w-4 h-4 text-red-500" /><span>{event.location}</span></div>
+            {/* DROPDOWN MENU MOBILE (Animasi turun saat diklik) */}
+            <AnimatePresence>
+              {isMenuOpen && (
+                <motion.div 
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  className="md:hidden overflow-hidden"
+                >
+                  <div className="flex flex-col gap-2 pt-4 pb-2 border-t-2 border-dashed border-slate-300 mt-4 bg-white/50 backdrop-blur-sm rounded-xl px-2">
+                    <a 
+                      href="#" 
+                      onClick={() => setIsMenuOpen(false)}
+                      className="p-3 font-black text-lg hover:bg-[#a6b5cf] rounded-xl transition-all flex items-center gap-2"
+                    >
+                      🏠 HOME
+                    </a>
+                    <a 
+                      href="#partners" 
+                      onClick={() => setIsMenuOpen(false)}
+                      className="p-3 font-black text-lg hover:bg-[#a6b5cf] rounded-xl transition-all flex items-center gap-2"
+                    >
+                      🤝 PARTNERS
+                    </a>
                   </div>
-                </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        </nav>
+
+        {/* CONTENT UTAMA */}
+        <main className="w-full flex-grow">
+          {/* BANNER */}
+          <div className="mt-8 relative w-full overflow-hidden py-4">
+            {banners.length === 0 ? (
+               <div className="w-full text-center py-10 bg-slate-200 border-2 border-black mx-auto max-w-[630px] rounded-2xl"><p className="font-bold text-slate-500">{supabase ? "Belum ada banner." : "Setup Supabase dulu!"}</p></div>
+            ) : (
+              <>
+                <motion.div className="flex gap-4 items-center" style={{ "--slide-width": "min(630px, 85vw)", "--gap": "16px" }} animate={{ x: `calc(50% - (var(--slide-width) / 2) - (${bannerIndex} * (var(--slide-width) + var(--gap))))` }} transition={{ type: "spring", stiffness: 200, damping: 25 }} drag="x" dragConstraints={{ left: 0, right: 0 }} dragElastic={0.1} onDragStart={() => setIsDragging(true)} onDragEnd={(e, i) => { setIsDragging(false); if (i.offset.x < -50 || i.velocity.x < -500) setBannerIndex((p) => (p + 1) % banners.length); else if (i.offset.x > 50 || i.velocity.x > 500) setBannerIndex((p) => (p - 1 + banners.length) % banners.length); }}>
+                  {banners.map((item, index) => (
+                    <motion.div key={item.id} className="relative shrink-0 rounded-2xl border-2 border-black bg-black overflow-hidden shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all duration-300" style={{ width: "var(--slide-width)", aspectRatio: "630/140" }} animate={{ scale: index === bannerIndex ? 1 : 0.9, opacity: index === bannerIndex ? 1 : 0.5, filter: index === bannerIndex ? "grayscale(0%)" : "grayscale(100%)" }}>
+                      <img src={item.url} className="w-full h-full object-cover opacity-90" draggable="false" />
+                    </motion.div>
+                  ))}
+                </motion.div>
+                <div className="flex justify-center gap-2 mt-6">{banners.map((_, idx) => (<button key={idx} onClick={() => setBannerIndex(idx)} className={`w-3 h-3 rounded-full border border-black shadow-sm transition-all ${idx === bannerIndex ? 'bg-[#a6b5cf] scale-125' : 'bg-white'}`} />))}</div>
+              </>
+            )}
+          </div>
+
+          <div className="max-w-6xl mx-auto px-6">
+            {/* SEARCH */}
+            <div className="mt-6 flex flex-col md:flex-row gap-4 items-center">
+              <div className="relative w-full">
+                <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Cari konser favoritmu..." className="w-full bg-white border-2 border-black rounded-xl px-5 py-4 text-lg font-medium focus:outline-none focus:ring-4 focus:ring-[#a6b5cf] transition-all shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]" />
+                <div className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400">🔍</div>
+              </div>
+            </div>
+
+            {/* EVENT LIST */}
+            <div className="mt-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+              {filteredEvents.length === 0 && !loading && <div className="col-span-full text-center py-20 opacity-50"><Database size={48} className="mx-auto mb-2"/><p className="font-bold">Belum ada event.</p></div>}
+              {filteredEvents.map((event) => (
+                <motion.div layoutId={`card-${event.id}`} key={event.id} onClick={() => setSelectedEvent(event)} whileHover={{ y: -8 }} className="bg-white rounded-2xl border-2 border-black overflow-hidden cursor-pointer shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:shadow-[10px_10px_0px_0px_#31528b] transition-all group">
+                  <div className="relative h-48 overflow-hidden border-b-2 border-black">
+                    <motion.img layoutId={`img-${event.id}`} src={event.image} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                    <div className="absolute top-3 right-3 bg-white border-2 border-black px-3 py-1 text-sm font-bold rounded-full shadow-sm">{event.price}</div>
+                  </div>
+                  <div className="p-5">
+                    <motion.h3 layoutId={`title-${event.id}`} className="text-xl font-black mb-2 leading-tight">{event.title}</motion.h3>
+                    <div className="space-y-2 text-sm font-medium text-slate-600">
+                      <div className="flex items-center gap-2"><Calendar className="w-4 h-4 text-[#31528b]" /><span>{event.date}</span></div>
+                      <div className="flex items-center gap-2"><MapPin className="w-4 h-4 text-red-500" /><span>{event.location}</span></div>
+                    </div>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+
+            {/* PARTNERSHIP SECTION */}
+            <div id="partners" className="mt-24 border-t-4 border-black pt-10 pb-20">
+              <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={() => setShowPartnershipModal(true)} className="cursor-pointer border-4 border-black bg-[#a6b5cf] p-6 md:p-8 mb-12 text-center shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[4px] hover:translate-y-[4px] transition-all rounded-2xl">
+                 <h2 className="text-2xl md:text-4xl font-black italic tracking-tighter uppercase mb-2">AYO JADIKAN <span className="text-[#31528b] bg-white px-2">JADWALKONSERBDG</span> MEDIA PARTNER! </h2>
+                 <p className="font-bold text-lg underline decoration-wavy decoration-black">Klik di sini untuk kerjasama & boost eventmu!</p>
               </motion.div>
-            ))}
-          </div>
-
-          {/* PARTNERSHIP SECTION */}
-          <div id="partners" className="mt-24 border-t-4 border-black pt-10 pb-20">
-            <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={() => setShowPartnershipModal(true)} className="cursor-pointer border-4 border-black bg-[#a6b5cf] p-6 md:p-8 mb-12 text-center shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[4px] hover:translate-y-[4px] transition-all rounded-2xl">
-               <h2 className="text-2xl md:text-4xl font-black italic tracking-tighter uppercase mb-2">AYO JADIKAN <span className="text-[#31528b] bg-white px-2">JADWALKONSERBDG</span> MEDIA PARTNER! </h2>
-               <p className="font-bold text-lg underline decoration-wavy decoration-black">Klik di sini untuk kerjasama & boost eventmu!</p>
-            </motion.div>
-            <div className="flex flex-col md:flex-row items-center justify-between mb-8"><h3 className="text-3xl font-black uppercase italic tracking-tighter">Official Partners</h3><p className="text-slate-500 font-medium">Didukung oleh brand terbaik</p></div>
-            <div className="flex flex-wrap gap-4 justify-center md:justify-start">
-              {partners.map((p) => (<a key={p.id} href={p.url} target="_blank" className="bg-white px-6 py-3 rounded-xl border-2 border-black font-bold hover:bg-[#a6b5cf] transition-colors shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-y-1 hover:shadow-none">{p.name} ↗</a>))}
+              <div className="flex flex-col md:flex-row items-center justify-between mb-8"><h3 className="text-3xl font-black uppercase italic tracking-tighter">Official Partners</h3><p className="text-slate-500 font-medium">Didukung oleh brand terbaik</p></div>
+              <div className="flex flex-wrap gap-4 justify-center md:justify-start">
+                {partners.map((p) => (<a key={p.id} href={p.url} target="_blank" className="bg-white px-6 py-3 rounded-xl border-2 border-black font-bold hover:bg-[#a6b5cf] transition-colors shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-y-1 hover:shadow-none">{p.name} ↗</a>))}
+              </div>
             </div>
           </div>
-        </div>
-      </main>
+        </main>
 
-      {/* FOOTER (RESTORED TO FULL VERSION) */}
-      <footer className="bg-black text-white pt-16 pb-8 border-t-4 border-[#a6b5cf] mt-auto">
-        <div className="max-w-6xl mx-auto px-6 grid md:grid-cols-4 gap-8">
-          <div className="col-span-1 md:col-span-2">
-            <div className="flex items-center gap-2 mb-4">
-              <div className="w-10 h-10 bg-[#a6b5cf] text-black rounded-full flex items-center justify-center text-xl font-bold border-2 border-white">🎵</div>
-              <h2 className="text-3xl font-black tracking-tighter">JADWALKONSER<span className="text-[#31528b]">BANDUNG</span></h2>
+        {/* FOOTER LENGKAP (KEMBALI KE VERSI AWAL) */}
+        <footer className="bg-black text-white pt-16 pb-8 border-t-4 border-[#a6b5cf] mt-auto">
+          <div className="max-w-6xl mx-auto px-6 grid md:grid-cols-4 gap-8">
+            <div className="col-span-1 md:col-span-2">
+              <div className="flex items-center gap-2 mb-4">
+                <div className="w-10 h-10 bg-[#a6b5cf] text-black rounded-full flex items-center justify-center text-xl font-bold border-2 border-white">🎵</div>
+                <h2 className="text-3xl font-black tracking-tighter">JDWL<span className="text-[#31528b]">KNSRBDG</span></h2>
+              </div>
+              <p className="text-slate-400 max-w-sm leading-relaxed">Platform informasi jadwal konser paling update di Bandung. Temukan gig favoritmu, beli tiket, dan rasakan atmosfer musik kota kembang.</p>
             </div>
-            <p className="text-slate-400 max-w-sm leading-relaxed">Platform informasi jadwal konser paling update di Bandung. Temukan gig favoritmu, beli tiket, dan rasakan atmosfer musik kota kembang.</p>
-          </div>
-          <div>
-            <h3 className="text-lg font-bold mb-4 text-[#a6b5cf] uppercase tracking-widest">Menu</h3>
-            <ul className="space-y-2 text-slate-300">
-              <li><a href="#" className="hover:text-white hover:underline">Home</a></li>
-              <li><a href="#partners" className="hover:text-white hover:underline">Partnership</a></li>
-              <li><a href="#" className="hover:text-white hover:underline">Tentang Kami</a></li>
-              <li><a href="#" className="hover:text-white hover:underline">Kontak</a></li>
-            </ul>
-          </div>
-          <div>
-            <h3 className="text-lg font-bold mb-4 text-[#a6b5cf] uppercase tracking-widest">Connect</h3>
-            <div className="flex gap-4">
-              <a href="https://www.instagram.com/jadwalkonserbandung/" target="_blank" className="bg-white text-black p-2 rounded-full hover:bg-[#a6b5cf] hover:scale-110 transition-all"><Instagram size={20} /></a>
-              <a href="https://www.tiktok.com/@jadwalkonserbandung" target="_blank" className="bg-white text-black p-2 rounded-full hover:bg-[#a6b5cf] hover:scale-110 transition-all flex justify-center items-center">
-                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18V5l12-2v13" /><circle cx="6" cy="18" r="3" /><circle cx="18" cy="16" r="3" /></svg>
-              </a>
-              <a href="#" className="bg-white text-black p-2 rounded-full hover:bg-[#a6b5cf] hover:scale-110 transition-all"><Facebook size={20} /></a>
-              <a href="#" className="bg-white text-black p-2 rounded-full hover:bg-[#a6b5cf] hover:scale-110 transition-all"><Mail size={20} /></a>
+            <div>
+              <h3 className="text-lg font-bold mb-4 text-[#a6b5cf] uppercase tracking-widest">Menu</h3>
+              <ul className="space-y-2 text-slate-300">
+                <li><a href="#" className="hover:text-white hover:underline">Home</a></li>
+                <li><a href="#partners" className="hover:text-white hover:underline">Partnership</a></li>
+                <li><a href="#" className="hover:text-white hover:underline">Tentang Kami</a></li>
+                <li><a href="#" className="hover:text-white hover:underline">Kontak</a></li>
+              </ul>
             </div>
-            <div className="mt-6"><p className="text-xs text-slate-500">© 2026 JADWALKONSERBANDUNG.</p><p className="text-xs text-slate-500">All rights reserved.</p></div>
+            <div>
+              <h3 className="text-lg font-bold mb-4 text-[#a6b5cf] uppercase tracking-widest">Connect</h3>
+              <div className="flex gap-4">
+                <a href="https://www.instagram.com/jadwalkonserbandung/" className="bg-white text-black p-2 rounded-full hover:bg-[#a6b5cf]"><Instagram size={20} /></a>
+                <a href="https://www.tiktok.com/@jadwalkonserbandung" className="bg-white text-black p-2 rounded-full hover:bg-[#a6b5cf] flex justify-center items-center"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18V5l12-2v13" /><circle cx="6" cy="18" r="3" /><circle cx="18" cy="16" r="3" /></svg></a>
+                <a href="#" className="bg-white text-black p-2 rounded-full hover:bg-[#a6b5cf]"><Facebook size={20} /></a>
+                <a href="#" className="bg-white text-black p-2 rounded-full hover:bg-[#a6b5cf]"><Mail size={20} /></a>
+              </div>
+              <div className="mt-6"><p className="text-xs text-slate-500">© 2026 JDWLKNSRBDG.</p><p className="text-xs text-slate-500">All rights reserved.</p></div>
+            </div>
           </div>
-        </div>
-      </footer>
+        </footer>
+      </div>
 
-      {/* ADMIN MODAL */}
       <AnimatePresence>
         {showAdminLogin && (
           <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-md overflow-y-auto">
@@ -303,11 +416,21 @@ export default function JadwalKonserBandung() {
                       <h2 className="text-2xl font-black">DASHBOARD ADMIN</h2>
                       <button onClick={() => setShowAdminLogin(false)}><X size={20} /></button>
                     </div>
+
+                    <div className="mb-6 p-4 bg-black text-white rounded-xl flex items-center justify-between border-4 border-[#a6b5cf]">
+                       <div className="flex items-center gap-3">
+                          <AlertTriangle className={`text-yellow-400 ${maintenanceMode ? 'animate-pulse' : ''}`} />
+                          <div><h4 className="font-bold text-lg">Mode Perbaikan</h4><p className="text-xs text-slate-400">Jika ON, pengunjung melihat halaman "Checksound".</p></div>
+                       </div>
+                       <button onClick={toggleMaintenance} className={`px-6 py-2 rounded-full font-black border-2 border-white transition-all ${maintenanceMode ? 'bg-red-500 text-white' : 'bg-green-500 text-white'}`}>{maintenanceMode ? 'STATUS: ON 🛑' : 'STATUS: OFF ✅'}</button>
+                    </div>
+
                     <div className="flex gap-2 mb-6 overflow-x-auto">
                       {['event', 'banner', 'partner'].map(tab => (
                         <button key={tab} onClick={() => setAdminTab(tab)} className={`px-4 py-2 rounded-full font-bold border-2 border-black capitalize ${adminTab === tab ? 'bg-black text-white' : 'bg-white'}`}>{tab}</button>
                       ))}
                     </div>
+                    
                     {adminTab === 'event' && (
                       <div className="space-y-4">
                          <input placeholder="Judul Event" className="w-full p-3 bg-slate-50 border rounded-lg" value={newEvent.title} onChange={e => setNewEvent({...newEvent, title: e.target.value})} />
@@ -316,6 +439,7 @@ export default function JadwalKonserBandung() {
                          <input placeholder="Link Tiket" className="w-full p-3 bg-slate-50 border rounded-lg" value={newEvent.ticket} onChange={e => setNewEvent({...newEvent, ticket: e.target.value})} />
                          <input placeholder="Kode Embed Map (iframe)" className="w-full p-3 bg-slate-50 border rounded-lg" value={newEvent.map} onChange={(e) => { let val = e.target.value; if (val.includes('<iframe')) { const match = val.match(/src="([^"]+)"/); if (match) val = match[1]; } setNewEvent({...newEvent, map: val}); }} />
                          <textarea placeholder="Deskripsi" className="w-full p-3 bg-slate-50 border rounded-lg" value={newEvent.description} onChange={e => setNewEvent({...newEvent, description: e.target.value})} />
+                         
                          <div className="border-2 border-dashed border-slate-300 p-4 rounded-lg text-center">
                             {uploading ? <div className="text-[#31528b] font-bold animate-pulse">Uploading...</div> : <label className="cursor-pointer block font-bold text-slate-500">📸 Upload Gambar Event (Max 10MB)<input type="file" className="hidden" onChange={async (e) => { const url = await handleUploadImage(e.target.files[0]); if(url) setNewEvent({...newEvent, image: url}); }} /></label>}
                          </div>
@@ -329,9 +453,7 @@ export default function JadwalKonserBandung() {
                     )}
                     {adminTab === 'banner' && (
                       <div>
-                        <div className="border-2 border-dashed border-[#31528b] p-8 rounded-xl text-center mb-6">
-                           {uploading ? <p className="font-bold text-[#31528b]">Sedang Upload...</p> : <label className="cursor-pointer block"><Upload className="mx-auto mb-2 text-[#31528b]" /><span className="font-bold text-[#31528b]">Tambah Banner (Max 10MB)</span><input type="file" className="hidden" onChange={(e) => handleBannerUpload(e.target.files[0])} /></label>}
-                        </div>
+                        <div className="border-2 border-dashed border-[#31528b] p-8 rounded-xl text-center mb-6">{uploading ? <p className="font-bold text-[#31528b]">Sedang Upload...</p> : <label className="cursor-pointer block"><Upload className="mx-auto mb-2 text-[#31528b]" /><span className="font-bold text-[#31528b]">Tambah Banner (Max 10MB)</span><input type="file" className="hidden" onChange={(e) => handleBannerUpload(e.target.files[0])} /></label>}</div>
                         <div className="grid grid-cols-2 gap-4">{banners.map((b) => (<div key={b.id} className="relative group rounded-xl overflow-hidden border border-slate-300"><img src={b.url} className="w-full h-24 object-cover" /><button onClick={() => handleDeleteBanner(b.id)} className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full"><Trash2 size={14} /></button></div>))}</div>
                       </div>
                     )}
@@ -350,14 +472,13 @@ export default function JadwalKonserBandung() {
         )}
       </AnimatePresence>
 
-      {/* PARTNERSHIP MODAL (RESTORED FULL) */}
       <AnimatePresence>
         {showPartnershipModal && (
           <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-md overflow-y-auto">
              <div className="flex min-h-full items-center justify-center p-4">
                <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="bg-[#FDFBF7] w-full max-w-4xl rounded-3xl border-4 border-[#a6b5cf] shadow-[10px_10px_0px_0px_rgba(255,255,255,0.2)] flex flex-col my-8">
                   <div className="bg-black text-white p-6 md:p-8 flex justify-between items-start border-b-4 border-[#a6b5cf] rounded-t-2xl">
-                     <div><h2 className="text-3xl font-black italic tracking-tighter text-[#a6b5cf] mb-2">KERJASAMA MEDIA PARTNER</h2><p className="text-slate-300 font-medium">Isi form di bawah untuk kolaborasi epik bareng JADWALKONSERBANDUNG!</p></div>
+                     <div><h2 className="text-3xl font-black italic tracking-tighter text-[#a6b5cf] mb-2">KERJASAMA MEDIA PARTNER</h2><p className="text-slate-300 font-medium">Isi form di bawah untuk kolaborasi epik bareng JDWLKNSRBDG!</p></div>
                      <button onClick={() => setShowPartnershipModal(false)} className="bg-white text-black p-2 rounded-full hover:bg-red-500 hover:text-white transition-colors"><X size={24} /></button>
                   </div>
                   <div className="p-6 md:p-8 flex flex-col md:flex-row gap-8">
@@ -409,16 +530,14 @@ export default function JadwalKonserBandung() {
           </div>
         )}
       </AnimatePresence>
-      
-      {/* DETAIL MODAL */}
       <AnimatePresence>
         {selectedEvent && (
           <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm overflow-y-auto">
             <div className="flex min-h-full items-center justify-center p-4">
-              <motion.div layoutId={`card-${selectedEvent.id}`} className="relative w-full max-w-4xl bg-white rounded-3xl border-4 border-black shadow-[12px_12px_0px_0px_rgba(255,255,255,0.2)] overflow-hidden flex flex-col md:flex-row my-8">
-                <div className="md:w-1/2 relative min-h-[300px] border-b-4 md:border-b-0 md:border-r-4 border-black">
-                  <motion.img layoutId={`img-${selectedEvent.id}`} src={selectedEvent.image} className="absolute inset-0 w-full h-full object-cover" />
-                  <button onClick={() => setSelectedEvent(null)} className="absolute top-4 left-4 bg-white rounded-full p-2 border-2 border-black shadow-md hover:bg-red-500 hover:text-white transition-colors z-10"><X size={20} /></button>
+              <motion.div layoutId={`card-${selectedEvent.id}`} className="relative w-full max-w-4xl bg-white rounded-3xl border-4 border-black shadow-2xl overflow-hidden flex flex-col md:flex-row my-8">
+                <div className="md:w-1/2 relative min-h-[300px] bg-slate-200">
+                  <img src={selectedEvent.image} className="absolute inset-0 w-full h-full object-cover" />
+                  <button onClick={() => setSelectedEvent(null)} className="absolute top-4 left-4 bg-white rounded-full p-2 border-2 border-black shadow-md"><X size={20} /></button>
                 </div>
                 <div className="md:w-1/2 p-6 flex flex-col bg-[#FDFBF7]">
                   <h2 className="text-3xl font-black mb-4">{selectedEvent.title}</h2>
@@ -435,6 +554,6 @@ export default function JadwalKonserBandung() {
           </div>
         )}
       </AnimatePresence>
-    </div>
+    </>
   );
 }
