@@ -304,14 +304,14 @@ export default function JadwalKonserBandung() {
                       onClick={() => setIsMenuOpen(false)}
                       className="p-3 font-black text-lg hover:bg-[#a6b5cf] rounded-xl transition-all flex items-center gap-2"
                     >
-                      🏠 HOME
+                       HOME
                     </a>
                     <a 
                       href="#partners" 
                       onClick={() => setIsMenuOpen(false)}
                       className="p-3 font-black text-lg hover:bg-[#a6b5cf] rounded-xl transition-all flex items-center gap-2"
                     >
-                      🤝 PARTNERS
+                       PARTNERS
                     </a>
                   </div>
                 </motion.div>
