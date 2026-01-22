@@ -235,8 +235,26 @@ export default function JadwalKonserBandung() {
   const handleDeletePartner = async (id) => { await supabase.from('partners').delete().eq('id', id); fetchData(); };
 
   /* ================= RENDER ================= */
-  if (loading) return <div className="fixed inset-0 bg-black flex flex-col items-center justify-center z-[9999] text-white">Loading...</div>;
-
+    if (loading) {
+    return (
+      <div className="fixed inset-0 bg-black flex flex-col items-center justify-center z-[9999]">
+        <motion.div
+          animate={{ scale: [1, 1.2, 1], rotate: [0, 10, -10, 0] }}
+          transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+          className="text-8xl mb-4"
+        >
+          🎵
+        </motion.div>
+        <motion.div 
+          initial={{ width: 0 }}
+          animate={{ width: "200px" }}
+          transition={{ duration: 2.5 }}
+          className="h-2 bg-[#a6b5cf] rounded-full" 
+        />
+        <p className="text-white mt-4 font-bold tracking-widest text-sm animate-pulse">MEMUAT KONSER...</p>
+      </div>
+    );
+  }
   const isMaintenanceActive = maintenanceMode && !isAdmin;
 
   return (
