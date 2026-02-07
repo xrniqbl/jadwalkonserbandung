@@ -496,7 +496,7 @@ export default function JadwalKonserBandung() {
              <div className="flex min-h-full items-center justify-center p-4">
                <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="bg-[#FDFBF7] w-full max-w-4xl rounded-3xl border-4 border-[#a6b5cf] shadow-[10px_10px_0px_0px_rgba(255,255,255,0.2)] flex flex-col my-8">
                   <div className="bg-black text-white p-6 md:p-8 flex justify-between items-start border-b-4 border-[#a6b5cf] rounded-t-2xl">
-                     <div><h2 className="text-3xl font-black italic tracking-tighter text-[#a6b5cf] mb-2">KERJASAMA MEDIA PARTNER</h2><p className="text-slate-300 font-medium">Isi form di bawah untuk kolaborasi epik bareng JDWLKNSRBDG!</p></div>
+                     <div><h2 className="text-3xl font-black italic tracking-tighter text-[#a6b5cf] mb-2">KERJASAMA MEDIA PARTNER</h2><p className="text-slate-300 font-medium">Isi form di bawah untuk kolaborasi epik bareng JADWALKONSERBANDUNG!</p></div>
                      <button onClick={() => setShowPartnershipModal(false)} className="bg-white text-black p-2 rounded-full hover:bg-red-500 hover:text-white transition-colors"><X size={24} /></button>
                   </div>
                   <div className="p-6 md:p-8 flex flex-col md:flex-row gap-8">
